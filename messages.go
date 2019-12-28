@@ -1,57 +1,57 @@
 package ssh1
 
 const (
-	SSH_MSG_NONE = iota
-	SSH_MSG_DISCONNECT
-	SSH_SMSG_PUBLIC_KEY
-	SSH_CMSG_SESSION_KEY
-	SSH_CMSG_USER
-	SSH_CMSG_AUTH_RHOSTS
-	SSH_CMSG_AUTH_RSA
-	SSH_SMSG_AUTH_RSA_CHALLENGE
-	SSH_CMSG_AUTH_RSA_RESPONSE
-	SSH_CMSG_AUTH_PASSWORD
-	SSH_CMSG_REQUEST_PTY
-	SSH_CMSG_WINDOW_SIZE
-	SSH_CMSG_EXEC_SHELL
-	SSH_CMSG_EXEC_CMD
-	SSH_SMSG_SUCCESS
-	SSH_SMSG_FAILURE
-	SSH_CMSG_STDIN_DATA
-	SSH_SMSG_STDOUT_DATA
-	SSH_SMSG_STDERR_DATA
-	SSH_CMSG_EOF
-	SSH_SMSG_EXITSTATUS
-	SSH_MSG_CHANNEL_OPEN_CONFIRMATION
-	SSH_MSG_CHANNEL_OPEN_FAILURE
-	SSH_MSG_CHANNEL_DATA
-	SSH_MSG_CHANNEL_CLOSE
-	SSH_MSG_CHANNEL_CLOSE_CONFIRMATION
+	msgNone = iota
+	msgDisconnect
+	smsgPublicKey
+	cmsgSessionKey
+	cmsgUser
+	cmsgAuthRhosts
+	cmsgAuthRSA
+	smsgAuthRSAChallenge
+	cmsgAuthRSAResponse
+	cmsgAuthPassword
+	cmsgRequestPTY
+	cmsgWindowSize
+	cmsgExecShell
+	cmsgExecCmd
+	smsgSuccess
+	smsgFailure
+	cmsgStdinData
+	smsgStdoutData
+	smsgStderrData
+	cmsgEOF
+	smsgExitstatus
+	msgChannelOpenConfirmation
+	msgChannelOpenFailure
+	msgChannelData
+	msgChannelClose
+	msgChannelCloseConfirmation
 	//OBSOLETED: SSH_CMSG_X11_REQUEST_FORWARDING
 	_
-	SSH_SMSG_X11_OPEN
-	SSH_CMSG_PORT_FORWARD_REQUEST
-	SSH_MSG_PORT_OPEN
-	SSH_CMSG_AGENT_REQUEST_FORWARDING
-	SSH_SMSG_AGENT_OPEN
-	SSH_MSG_IGNORE
-	SSH_CMSG_EXIT_CONFIRMATION
-	SSH_CMSG_X11_REQUEST_FORWARDING
-	SSH_CMSG_AUTH_RHOSTS_RSA
-	SSH_MSG_DEBUG
-	SSH_CMSG_REQUEST_COMPRESSION
-	SSH_CMSG_MAX_PACKET_SIZE
-	SSH_CMSG_AUTH_TIS
-	SSH_SMSG_AUTH_TIS_CHALLENGE
-	SSH_CMSG_AUTH_TIS_RESPONSE
-	SSH_CMSG_AUTH_KERBEROS
-	SSH_SMSG_AUTH_KERBEROS_RESPONSE
-	SSH_CMSG_HAVE_KERBEROS_TGT
-	SSH_CMSG_HAVE_AFS_TOKEN = 65
+	smsgX11Open
+	cmsgPortForwardRequest
+	msgPortOpen
+	cmsgAgentRequestForwarding
+	smsgAgentOpen
+	msgIgnore
+	cmsgExitConfirmation
+	cmsgX11RequestForwarding
+	cmsgAuthRhostsRSA
+	msgDebug
+	cmsgRequestCompression
+	cmsgMaxPacketSize
+	cmsgAuthTis
+	smsgAuthTisChallenge
+	cmsgAuthTisResponse
+	cmsgAuthKerberos
+	smsgAuthKerberosResponse
+	cmsgHaveKerberosTGT
+	cmsgHaveAFSToken = 65
 )
 
 //Protocol version 1.5 overloads some version 1.3 message types
 const (
-	SSH_MSG_CHANNEL_INPUT_EOF    = SSH_MSG_CHANNEL_CLOSE
-	SSH_MSG_CHANNEL_OUTPUT_CLOSE = SSH_MSG_CHANNEL_CLOSE_CONFIRMATION
+	msgChannelInputEOF    = msgChannelClose
+	msgChannelOutputClose = msgChannelCloseConfirmation
 )
