@@ -152,7 +152,7 @@ type stderrDataSmsg struct {
 	Data string `sshtype:"18"`
 }
 
-type exitStatusSmsg struct {
+type exitstatusSmsg struct {
 	Status uint32 `sshtype:"20"`
 }
 
@@ -715,7 +715,7 @@ func decode(packet []byte) (interface{}, error) {
 	case smsgStderrData:
 		msg = new(stderrDataSmsg)
 	case smsgExitstatus:
-		msg = new(exitStatusSmsg)
+		msg = new(exitstatusSmsg)
 	case msgChannelOpenConfirmation:
 		msg = new(channelOpenConfirmationMsg)
 	case msgChannelOpenFailure:
