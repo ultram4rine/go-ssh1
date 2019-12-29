@@ -9,3 +9,9 @@ const (
 	cipherRC4
 	cipherBlowfish
 )
+
+type noneCipher struct{}
+
+func (c noneCipher) XORKeyStream(dst, src []byte) {
+	copy(dst, src)
+}
