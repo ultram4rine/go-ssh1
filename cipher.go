@@ -1,11 +1,11 @@
 package ssh1
 
 const (
-	SSH_CIPHER_NONE = iota
-	SSH_CIPHER_IDEA
-	SSH_CIPHER_DES
-	SSH_CIPHER_3DES
+	cipherNone = iota
+	cipherIDEA
+	cipherDES
+	cipher3DES
 	_
-	SSH_CIPHER_RC4
-	SSH_CIPHER_BLOWFISH
+	cipherRC4
+	cipherBlowfish
 )
