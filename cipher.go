@@ -20,7 +20,7 @@ const (
 )
 
 // CipherMask implements mask of supported ciphers
-type CipherMask uint
+type CipherMask uint32
 
 // AddCiphers returns mask of choosen ciphers
 func (mask CipherMask) AddCiphers(ciphers ...int) error {
