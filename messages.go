@@ -69,15 +69,15 @@ const (
 )
 
 type disconnectMsg struct {
-	Cause string `sshtype:"1"`
+	Cause string `ssh1type:"1"`
 }
 
 func (m disconnectMsg) Error() string {
-	return fmt.Sprintf("ssh: disconnect, reason: %s", m.Cause)
+	return fmt.Sprintf("ssh1: disconnect, reason: %s", m.Cause)
 }
 
 type pubKeySmsg struct {
-	Cookie               [8]byte `sshtype:"2"`
+	Cookie               [8]byte `ssh1type:"2"`
 	ServerKey            uint32
 	ServerKeyPubExponent big.Int
 	ServerKeyPubModulus  big.Int
@@ -90,38 +90,38 @@ type pubKeySmsg struct {
 }
 
 type sessionKeyCmsg struct {
-	Cipher        byte `sshtype:"3"`
+	Cipher        byte `ssh1type:"3"`
 	Cookie        [8]byte
 	SessionKey    big.Int
 	ProtocolFlags uint32
 }
 
 type userCmsg struct {
-	UserName string `sshtype:"4"`
+	UserName string `ssh1type:"4"`
 }
 
 type authRhostsCmsg struct {
-	UserName string `sshtype:"5"`
+	UserName string `ssh1type:"5"`
 }
 
 type authRSACmsg struct {
-	IdentityPubModulus big.Int `sshtype:"6"`
+	IdentityPubModulus big.Int `ssh1type:"6"`
 }
 
 type authRSAChallengeSmsg struct {
-	Challenge big.Int `sshtype:"7"`
+	Challenge big.Int `ssh1type:"7"`
 }
 
 type authRSAResponceCmsg struct {
-	Challenge [16]byte `sshtype:"8"`
+	Challenge [16]byte `ssh1type:"8"`
 }
 
 type authPasswordCmsg struct {
-	Password string `sshtype:"9"`
+	Password string `ssh1type:"9"`
 }
 
 type requestPTYCmsg struct {
-	TermEnv      string `sshtype:"10"`
+	TermEnv      string `ssh1type:"10"`
 	Height       uint32
 	Width        uint32
 	WidthPixels  uint32
@@ -130,129 +130,129 @@ type requestPTYCmsg struct {
 }
 
 type windowSizeCmsg struct {
-	Height       uint32 `sshtype:"11"`
+	Height       uint32 `ssh1type:"11"`
 	Width        uint32
 	WidthPixels  uint32
 	HeightPixels uint32
 }
 
 type execCmdCmsg struct {
-	Command string `sshtype:"13"`
+	Command string `ssh1type:"13"`
 }
 
 type stdinDataCmsg struct {
-	Data string `sshtype:"16"`
+	Data string `ssh1type:"16"`
 }
 
 type stdoutDataSmsg struct {
-	Data string `sshtype:"17"`
+	Data string `ssh1type:"17"`
 }
 
 type stderrDataSmsg struct {
-	Data string `sshtype:"18"`
+	Data string `ssh1type:"18"`
 }
 
 type exitstatusSmsg struct {
-	Status uint32 `sshtype:"20"`
+	Status uint32 `ssh1type:"20"`
 }
 
 type channelOpenConfirmationMsg struct {
-	Remote uint32 `sshtype:"21"`
+	Remote uint32 `ssh1type:"21"`
 	Local  uint32
 }
 
 type channelOpenFailureMsg struct {
-	Remote uint32 `sshtype:"22"`
+	Remote uint32 `ssh1type:"22"`
 }
 
 type channelDataMsg struct {
-	Remote uint32 `sshtype:"23"`
+	Remote uint32 `ssh1type:"23"`
 	Data   string
 }
 
 type channelCloseMsg struct {
-	Remote uint32 `sshtype:"24"`
+	Remote uint32 `ssh1type:"24"`
 }
 
 type channelCloseConfirmationMsg struct {
-	Remote uint32 `sshtype:"25"`
+	Remote uint32 `ssh1type:"25"`
 }
 
 type x11OpenSmsg struct {
-	Local      uint32 `sshtype:"27"`
+	Local      uint32 `ssh1type:"27"`
 	Originator string
 }
 
 type portForwardRequestCmsg struct {
-	ServerPort uint32 `sshtype:"28"`
+	ServerPort uint32 `ssh1type:"28"`
 	Host       string
 	Port       uint32
 }
 
 type portOpenMsg struct {
-	Local      uint32 `sshtype:"29"`
+	Local      uint32 `ssh1type:"29"`
 	Host       string
 	Port       uint32
 	Originator string
 }
 
 type agentOpenSmsg struct {
-	Local uint32 `sshtype:"31"`
+	Local uint32 `ssh1type:"31"`
 }
 
 type ignoreMsg struct {
-	Data string `sshtype:"32"`
+	Data string `ssh1type:"32"`
 }
 
 type x11RequestForwardingCmsg struct {
-	X11AuthProto string `sshtype:"34"`
+	X11AuthProto string `ssh1type:"34"`
 	X11AuthData  string
 	ScreenNum    uint32
 }
 
 type authRhostsRSACmsg struct {
-	UserName           string `sshtype:"35"`
+	UserName           string `ssh1type:"35"`
 	HostKey            uint32
 	HostKeyPubExponent big.Int
 	HostKeyPubModulus  big.Int
 }
 
 type debugMsg struct {
-	Debug string `sshtype:"36"`
+	Debug string `ssh1type:"36"`
 }
 
 type requestCompressionCmsg struct {
-	Level uint32 `sshtype:"37"`
+	Level uint32 `ssh1type:"37"`
 }
 
 type maxPacketSizeCmsg struct {
-	Size uint32 `sshtype:"38"`
+	Size uint32 `ssh1type:"38"`
 }
 
 type authTisChallengeSmsg struct {
-	Challenge string `sshtype:"40"`
+	Challenge string `ssh1type:"40"`
 }
 
 type authTisResponseCmsg struct {
-	Response string `sshtype:"41"`
+	Response string `ssh1type:"41"`
 }
 
 type authKerberosCmsg struct {
-	AuthInfo string `sshtype:"42"`
+	AuthInfo string `ssh1type:"42"`
 }
 
 type authKerberosResponseSmsg struct {
-	Response string `sshtype:"43"`
+	Response string `ssh1type:"43"`
 }
 
 type haveKerberosTGTCmsg struct {
-	Credentials string `sshtype:"44"`
+	Credentials string `ssh1type:"44"`
 }
 
 // typeTags returns the possible type bytes for the given reflect.Type, which
 // should be a struct. The possible values are separated by a '|' character.
 func typeTags(structType reflect.Type) (tags []byte) {
-	tagStr := structType.Field(0).Tag.Get("sshtype")
+	tagStr := structType.Field(0).Tag.Get("ssh1type")
 
 	for _, tag := range strings.Split(tagStr, "|") {
 		i, err := strconv.Atoi(tag)
@@ -268,10 +268,10 @@ func fieldError(t reflect.Type, field int, problem string) error {
 	if problem != "" {
 		problem = ": " + problem
 	}
-	return fmt.Errorf("ssh: unmarshal error for field %s of type %s%s", t.Field(field).Name, t.Name(), problem)
+	return fmt.Errorf("ssh1: unmarshal error for field %s of type %s%s", t.Field(field).Name, t.Name(), problem)
 }
 
-var errShortRead = errors.New("ssh: short read")
+var errShortRead = errors.New("ssh1: short read")
 
 var (
 	bigIntType = reflect.TypeOf((*big.Int)(nil))
@@ -280,7 +280,7 @@ var (
 
 // Unmarshal parses data in SSH wire format into a structure. The out
 // argument should be a pointer to struct. If the first member of the
-// struct has the "sshtype" tag set to a '|'-separated set of numbers
+// struct has the "ssh1type" tag set to a '|'-separated set of numbers
 // in decimal, the packet must start with one of those numbers. In
 // case of error, Unmarshal returns a ParseError or
 // UnexpectedMessageError.
@@ -307,7 +307,7 @@ func Unmarshal(data []byte, out interface{}) error {
 			}
 		}
 		if !goodType {
-			return fmt.Errorf("ssh: unexpected message type %d (expected one of %v)", data[0], expectedTypes)
+			return fmt.Errorf("ssh1: unexpected message type %d (expected one of %v)", data[0], expectedTypes)
 		}
 		data = data[1:]
 	}
@@ -404,7 +404,7 @@ func Unmarshal(data []byte, out interface{}) error {
 
 // Marshal serializes the message in msg to SSH wire format.  The msg
 // argument should be a struct or pointer to struct. If the first
-// member has the "sshtype" tag set to a number in decimal, that
+// member has the "ssh1type" tag set to a number in decimal, that
 // number is prepended to the result. If the last of member has the
 // "ssh" tag set to "rest", its contents are appended to the output.
 func Marshal(msg interface{}) []byte {
