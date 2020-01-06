@@ -1,7 +1,5 @@
 package ssh1
 
-import "errors"
-
 const (
 	// SSH_CIPHER_NONE is no encryption
 	SSH_CIPHER_NONE = iota
@@ -19,19 +17,35 @@ const (
 	SSH_CIPHER_BLOWFISH
 )
 
-// CipherMask implements mask of supported ciphers
-type CipherMask uint32
+var cipherNames = map[int]string{
+	SSH_CIPHER_IDEA:     "idea",
+	SSH_CIPHER_DES:      "des",
+	SSH_CIPHER_3DES:     "3des",
+	SSH_CIPHER_RC4:      "rc4",
+	SSH_CIPHER_BLOWFISH: "blowfish",
+}
 
-// AddCiphers returns mask of choosen ciphers
-func (mask CipherMask) AddCiphers(ciphers ...int) error {
-	if len(ciphers) > SSH_CIPHER_BLOWFISH {
-		return errors.New("ssh1: too many ciphers")
+// CreateCipherMask returns a bitmask of choosen ciphers or panic
+// if cipher not supported or length of choosen ciphers too small
+// or too big
+func CreateCipherMask(ciphers ...int) *Bitmask {
+	var mask = new(Bitmask)
+
+	if len(ciphers) <= 0 {
+		panic("ssh1: too few ciphers")
+	}
+	if len(ciphers) > len(cipherNames) {
+		panic("ssh1: too many ciphers")
 	}
 
 	for _, c := range ciphers {
-		mask |= 1 << c
+		if _, ok := cipherNames[c]; !ok {
+			panic("ssh1: choosen cipher doesn't supported")
+		}
+		mask.addFlag(c)
 	}
-	return nil
+
+	return mask
 }
 
 type noneCipher struct{}
