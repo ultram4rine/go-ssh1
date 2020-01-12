@@ -1,6 +1,6 @@
 package ssh1
 
-//Bitmask represents a bitmask
+// Bitmask represents a bitmask.
 type Bitmask uint32
 
 func (m Bitmask) hasFlag(f int) bool { return m&(1<<f) != 0 }
