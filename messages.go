@@ -39,7 +39,7 @@ const (
 	msgChannelData
 	msgChannelClose
 	msgChannelCloseConfirmation
-	//OBSOLETED: SSH_CMSG_X11_REQUEST_FORWARDING
+	// OBSOLETED: SSH_CMSG_X11_REQUEST_FORWARDING.
 	_
 	smsgX11Open
 	cmsgPortForwardRequest
@@ -62,7 +62,7 @@ const (
 	cmsgHaveAFSToken = 65
 )
 
-//Protocol version 1.5 overloads some version 1.3 message types
+// Protocol version 1.5 overloads some version 1.3 message types.
 const (
 	msgChannelInputEOF    = msgChannelClose
 	msgChannelOutputClose = msgChannelCloseConfirmation
