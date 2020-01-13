@@ -89,6 +89,9 @@ func (c *streamPacketCipher) readCipherPacket(seqNum uint32, r io.Reader) ([1]by
 	}
 
 	length := binary.BigEndian.Uint32(c.length[:])
+	if length <= 5 {
+		return packetTypeForError, nil, errors.New("ssh1: invalid packet length, packet too small")
+	}
 	if length > maxPacket {
 		return packetTypeForError, nil, errors.New("ssh1: invalid packet length, packet too large")
 	}
