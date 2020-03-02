@@ -137,3 +137,40 @@ func (c *streamPacketCipher) readCipherPacket(seqNum uint32, r io.Reader) ([1]by
 
 	return c.packetType, c.data, nil
 }
+
+// writeCipherPacket encrypts and writes a single packet to the writer argument.
+func (c *streamPacketCipher) writeCipherPacket(seqNum uint32, w io.Writer, rand io.Reader, packetType [1]byte, packet []byte) error {
+	length := len(packetType) + len(packet) + 4
+	if length > maxPacket {
+		return errors.New("ssh1: packet too large")
+	}
+
+	binary.BigEndian.PutUint32(c.length[:], uint32(length))
+
+	paddingLength := 8 - (length % 8)
+	padding := c.padding[:paddingLength]
+	if _, err := io.ReadFull(rand, padding); err != nil {
+		return err
+	}
+
+	data := padding
+	data = append(data, packetType[:]...)
+	data = append(data, packet[:]...)
+
+	checksum := crc32.ChecksumIEEE(data)
+	var checkBytes = make([]byte, 4)
+	binary.BigEndian.PutUint32(checkBytes[:], checksum)
+
+	data = append(data, checkBytes[:]...)
+
+	c.cipher.XORKeyStream(data, data)
+
+	if _, err := w.Write(c.length[:]); err != nil {
+		return err
+	}
+	if _, err := w.Write(data); err != nil {
+		return err
+	}
+
+	return nil
+}
