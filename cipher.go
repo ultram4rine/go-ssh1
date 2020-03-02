@@ -2,10 +2,15 @@ package ssh1
 
 import (
 	"crypto/cipher"
+	"crypto/des"
+	"crypto/rc4"
 	"encoding/binary"
 	"errors"
 	"hash/crc32"
 	"io"
+
+	"github.com/dgryski/go-idea"
+	"golang.org/x/crypto/blowfish"
 )
 
 const (
@@ -63,6 +68,10 @@ type noneCipher struct{}
 
 func (c noneCipher) XORKeyStream(dst, src []byte) {
 	copy(dst, src)
+}
+
+func newRC4(key, iv []byte) (cipher.Stream, error) {
+	return rc4.NewCipher(key)
 }
 
 // streamPacketCipher is a packetCipher using a stream cipher.
@@ -173,4 +182,90 @@ func (c *streamPacketCipher) writeCipherPacket(seqNum uint32, w io.Writer, rand 
 	}
 
 	return nil
+}
+
+type cfbCipher struct {
+	encrypter cipher.Stream
+	decrypter cipher.Stream
+
+	seqNumBytes [4]byte
+	length      [4]byte
+	padding     []byte
+	packetType  [1]byte
+	data        []byte
+	check       [4]byte
+}
+
+func newCFBCipher(c cipher.Block, key, iv []byte) packetCipher {
+	cfb := &cfbCipher{
+		encrypter: cipher.NewCFBEncrypter(c, iv),
+		decrypter: cipher.NewCFBDecrypter(c, iv),
+	}
+	return cfb
+}
+
+func newIDEACFBCipher(key, iv []byte) (packetCipher, error) {
+	c, err := idea.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	cfb := newCFBCipher(c, key, iv)
+
+	return cfb, nil
+}
+
+type cbcCipher struct {
+	encrypter cipher.BlockMode
+	decrypter cipher.BlockMode
+
+	seqNumBytes [4]byte
+	length      [4]byte
+	padding     []byte
+	packetType  [1]byte
+	data        []byte
+	check       [4]byte
+
+	oracleCamouflage uint32
+}
+
+func newCBCCipher(c cipher.Block, key, iv []byte) packetCipher {
+	cbc := &cbcCipher{
+		encrypter: cipher.NewCBCEncrypter(c, iv),
+		decrypter: cipher.NewCBCDecrypter(c, iv),
+	}
+	return cbc
+}
+
+func newDESCBCCipher(key, iv []byte) (packetCipher, error) {
+	c, err := des.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	cbc := newCBCCipher(c, key, iv)
+
+	return cbc, nil
+}
+
+func newTripleDESCBCCipher(key, iv []byte) (packetCipher, error) {
+	c, err := des.NewTripleDESCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	cbc := newCBCCipher(c, key, iv)
+
+	return cbc, nil
+}
+
+func newBlowfishCBCCipher(key, iv []byte) (packetCipher, error) {
+	c, err := blowfish.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	cbc := newCBCCipher(c, key, iv)
+
+	return cbc, nil
 }
