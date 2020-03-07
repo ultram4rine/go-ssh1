@@ -38,8 +38,8 @@ var cipherNames = map[int]string{
 	SSH_CIPHER_BLOWFISH: "blowfish",
 }
 
-// CreateCipherMask returns a bitmask of choosen ciphers or panic
-// if cipher not supported or length of choosen ciphers too small
+// CreateCipherMask returns a bitmask of chosen ciphers or panic
+// if cipher not supported or length of chosen ciphers too small
 // or too big.
 func CreateCipherMask(ciphers ...int) *Bitmask {
 	var mask = new(Bitmask)
@@ -53,7 +53,7 @@ func CreateCipherMask(ciphers ...int) *Bitmask {
 
 	for _, c := range ciphers {
 		if _, ok := cipherNames[c]; !ok {
-			panic("ssh1: choosen cipher doesn't supported")
+			panic("ssh1: chosen cipher doesn't supported")
 		}
 		mask.addFlag(c)
 	}

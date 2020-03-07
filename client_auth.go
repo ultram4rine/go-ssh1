@@ -22,8 +22,8 @@ var authMethods = map[int]string{
 	SSH_AUTH_RHOSTS_RSA: "rhosts_rsa",
 }
 
-// CreateAuthMask returns a bitmask of choosen auth methods or panic
-// if auth method not supported or length of choosen methods too small
+// CreateAuthMask returns a bitmask of chosen auth methods or panic
+// if auth method not supported or length of chosen methods too small
 // or too big
 func CreateAuthMask(methods ...int) *Bitmask {
 	var mask = new(Bitmask)
@@ -37,7 +37,7 @@ func CreateAuthMask(methods ...int) *Bitmask {
 
 	for _, m := range methods {
 		if _, ok := authMethods[m]; !ok {
-			panic("ssh1: choosen auth method doesn't supported")
+			panic("ssh1: chosen auth method doesn't supported")
 		}
 		mask.addFlag(m)
 	}
