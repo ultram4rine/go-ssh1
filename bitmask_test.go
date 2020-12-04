@@ -1,8 +1,6 @@
 package ssh1
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestHasFlag(t *testing.T) {
 	var m = CreateCipherMask(SSH_CIPHER_3DES)
