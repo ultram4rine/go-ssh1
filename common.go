@@ -2,10 +2,10 @@ package ssh1
 
 import "fmt"
 
-const protocolmajor = 1
-const protocolminor = 5
+const protocolMajor = 1
+const protocolMinor = 5
 
-var packageVersion = fmt.Sprintf("SSH-%d.%d-Go", protocolmajor, protocolminor)
+var packageVersion = fmt.Sprintf("SSH-%d.%d-Go", protocolMajor, protocolMinor)
 
 // unexpectedMessageError results when the SSH message that we received didn't
 // match what we wanted.
