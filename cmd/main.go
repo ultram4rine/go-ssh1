@@ -23,21 +23,20 @@ func main() {
 	}
 	fmt.Println(version)
 
-	if _, err := conn.Write([]byte(version)); err != nil {
+	if _, err := conn.Write([]byte("SSH-1.5-Go\n")); err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("version sended")
+	fmt.Println("Version sended")
 
 	var reader = bufio.NewReader(conn)
 
 	// read length.
 	fmt.Println("Read length")
 	var lenBytes = make([]byte, 4)
-	n, err := reader.Read(lenBytes)
+	_, err = reader.Read(lenBytes)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("n must be 4: %d\n", n)
 
 	for _, b := range lenBytes {
 		fmt.Printf("%08b ", b)
@@ -48,11 +47,10 @@ func main() {
 	// read padding.
 	fmt.Println("Read padding")
 	var paddingBytes = make([]byte, (8 - (length % 8)))
-	n, err = reader.Read(paddingBytes)
+	_, err = reader.Read(paddingBytes)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("n must be %d: %d\n", (8 - (length % 8)), n)
 
 	for _, b := range paddingBytes {
 		fmt.Printf("%08b ", b)
@@ -63,11 +61,10 @@ func main() {
 	// read packet type.
 	fmt.Println("Read packet type")
 	var packetTypeBytes = make([]byte, 1)
-	n, err = reader.Read(packetTypeBytes)
+	_, err = reader.Read(packetTypeBytes)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("n must be 1: %d\n", n)
 
 	for _, b := range packetTypeBytes {
 		fmt.Printf("%08b ", b)
@@ -78,11 +75,10 @@ func main() {
 	// read data.
 	fmt.Println("Read data")
 	var dataBytes = make([]byte, length-5)
-	n, err = reader.Read(dataBytes)
+	_, err = reader.Read(dataBytes)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("n must be %d: %d\n", length-5, n)
 
 	// decode data.
 	fmt.Println("Decode data")
@@ -108,11 +104,10 @@ func main() {
 	// read crc.
 	fmt.Println("Read checksum")
 	var crcBytes = make([]byte, 4)
-	n, err = reader.Read(crcBytes)
+	_, err = reader.Read(crcBytes)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("n must be 4: %d\n", n)
 
 	for _, b := range crcBytes {
 		fmt.Printf("%08b ", b)
@@ -120,10 +115,11 @@ func main() {
 	var crc = binary.BigEndian.Uint32(crcBytes)
 	fmt.Printf("= %d\n", crc)
 
-	data := make([]byte, length)
+	data := make([]byte, 0, (8-(length%8))+1+length-5)
 	data = append(data, paddingBytes...)
 	data = append(data, packetTypeBytes...)
 	data = append(data, dataBytes...)
+
 	checksum := crc32.ChecksumIEEE(data)
 	fmt.Printf("%d == %d ? %t", crc, checksum, checksum == crc)
 }
