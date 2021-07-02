@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"hash/crc32"
 	"log"
+	"math/big"
 	"net"
+
+	"github.com/ultram4rine/go-ssh1"
 )
 
 func main() {
@@ -79,9 +82,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	for _, b := range dataBytes {
+		fmt.Printf("%08b ", b)
+	}
 
 	// decode data.
-	fmt.Println("Decode data")
+	fmt.Println("\nDecode data")
 	var (
 		ciphersBytes = dataBytes[length-5-4-4 : length-5-4]
 		authBytes    = dataBytes[length-5-4 : length-5]
@@ -122,7 +128,11 @@ func main() {
 	fmt.Println(len(data))
 
 	checksum := ssh1CRC32(data, len(data))
-	fmt.Printf("%d == %d ? %t", crc, checksum, checksum == crc)
+	fmt.Printf("%d == %d ? %t\n", crc, checksum, checksum == crc)
+
+	var pubKey pubKeySmsg
+	err = ssh1.Unmarshal(append(packetTypeBytes, dataBytes...), &pubKey)
+	log.Println(err)
 }
 
 // Return a 32-bit CRC of the data.
@@ -132,4 +142,17 @@ func ssh1CRC32(data []byte, len int) uint32 {
 		crc32val = crc32.IEEETable[(crc32val^uint32(data[i]))&0xff] ^ (crc32val >> 8)
 	}
 	return crc32val
+}
+
+type pubKeySmsg struct {
+	Cookie               [8]byte `ssh1type:"2"`
+	ServerKey            uint32
+	ServerKeyPubExponent *big.Int
+	ServerKeyPubModulus  *big.Int
+	HostKey              uint32
+	HostKeyPubExponent   *big.Int
+	HostKeyPubModulus    *big.Int
+	ProtocolFlags        uint32
+	CipherMask           uint32
+	AuthMask             uint32
 }
