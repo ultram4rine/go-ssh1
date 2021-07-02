@@ -79,11 +79,11 @@ func (m disconnectMsg) Error() string {
 type pubKeySmsg struct {
 	Cookie               [8]byte `ssh1type:"2"`
 	ServerKey            uint32
-	ServerKeyPubExponent big.Int
-	ServerKeyPubModulus  big.Int
+	ServerKeyPubExponent *big.Int
+	ServerKeyPubModulus  *big.Int
 	HostKey              uint32
-	HostKeyPubExponent   big.Int
-	HostKeyPubModulus    big.Int
+	HostKeyPubExponent   *big.Int
+	HostKeyPubModulus    *big.Int
 	ProtocolFlags        uint32
 	CipherMask           uint32
 	AuthMask             uint32
@@ -92,7 +92,7 @@ type pubKeySmsg struct {
 type sessionKeyCmsg struct {
 	Cipher        byte `ssh1type:"3"`
 	Cookie        [8]byte
-	SessionKey    big.Int
+	SessionKey    *big.Int
 	ProtocolFlags uint32
 }
 
@@ -324,6 +324,7 @@ func Unmarshal(data []byte, out interface{}) error {
 			field.SetBool(data[0] != 0)
 			data = data[1:]
 		case reflect.Array:
+			fmt.Println("array")
 			if t.Elem().Kind() != reflect.Uint8 {
 				return fieldError(structType, i, "array of unsupported type")
 			}
@@ -335,30 +336,35 @@ func Unmarshal(data []byte, out interface{}) error {
 			}
 			data = data[t.Len():]
 		case reflect.Uint64:
+			fmt.Println("uint64")
 			var u64 uint64
 			if u64, data, ok = parseUint64(data); !ok {
 				return errShortRead
 			}
 			field.SetUint(u64)
 		case reflect.Uint32:
+			fmt.Println("uint32")
 			var u32 uint32
 			if u32, data, ok = parseUint32(data); !ok {
 				return errShortRead
 			}
 			field.SetUint(uint64(u32))
 		case reflect.Uint8:
+			fmt.Println("uint8")
 			if len(data) < 1 {
 				return errShortRead
 			}
 			field.SetUint(uint64(data[0]))
 			data = data[1:]
 		case reflect.String:
+			fmt.Println("string")
 			var s []byte
 			if s, data, ok = parseString(data); !ok {
 				return fieldError(structType, i, "")
 			}
 			field.SetString(string(s))
 		case reflect.Slice:
+			fmt.Println("slice")
 			switch t.Elem().Kind() {
 			case reflect.Uint8:
 				if structType.Field(i).Tag.Get("ssh") == "rest" {
@@ -381,6 +387,7 @@ func Unmarshal(data []byte, out interface{}) error {
 				return fieldError(structType, i, "slice of unsupported type")
 			}
 		case reflect.Ptr:
+			fmt.Println("ptr")
 			if t == bigIntType {
 				var n *big.Int
 				if n, data, ok = parseInt(data); !ok {
@@ -393,6 +400,7 @@ func Unmarshal(data []byte, out interface{}) error {
 		default:
 			return fieldError(structType, i, fmt.Sprintf("unsupported type: %v", t))
 		}
+		fmt.Println("value: ", field)
 	}
 
 	if len(data) != 0 {
@@ -497,11 +505,13 @@ func parseString(in []byte) (out, rest []byte, ok bool) {
 	if len(in) < 4 {
 		return
 	}
+	fmt.Println("ok")
 	length := binary.BigEndian.Uint32(in)
 	in = in[4:]
 	if uint32(len(in)) < length {
 		return
 	}
+	fmt.Println("ok")
 	out = in[:length]
 	rest = in[length:]
 	ok = true
@@ -531,26 +541,19 @@ func parseNameList(in []byte) (out []string, rest []byte, ok bool) {
 }
 
 func parseInt(in []byte) (out *big.Int, rest []byte, ok bool) {
-	contents, rest, ok := parseString(in)
-	if !ok {
+	if len(in) < 2 {
 		return
 	}
-	out = new(big.Int)
 
-	if len(contents) > 0 && contents[0]&0x80 == 0x80 {
-		// This is a negative number
-		notBytes := make([]byte, len(contents))
-		for i := range notBytes {
-			notBytes[i] = ^contents[i]
-		}
-		out.SetBytes(notBytes)
-		out.Add(out, bigOne)
-		out.Neg(out)
-	} else {
-		// Positive number
-		out.SetBytes(contents)
-	}
+	bits := binary.BigEndian.Uint16(in)
+	in = in[2:]
+
+	out = new(big.Int)
+	out.SetBytes(in[:((bits+7)/8)+1])
+
+	rest = in[(bits+7)/8:]
 	ok = true
+
 	return
 }
 
