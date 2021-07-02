@@ -6,7 +6,6 @@ import (
 	"crypto/rc4"
 	"encoding/binary"
 	"errors"
-	"hash/crc32"
 	"io"
 
 	"github.com/dgryski/go-idea"
@@ -147,7 +146,7 @@ func (c *streamPacketCipher) readCipherPacket(seqNum uint32, r io.Reader) ([1]by
 		return packetTypeForError, nil, err
 	}
 
-	checksum := crc32.ChecksumIEEE(c.data)
+	checksum := ssh1CRC32(data, len(data))
 	if checksum != binary.BigEndian.Uint32(c.check[:]) {
 		return packetTypeForError, nil, errors.New("ssh1: CRC32 checksum failed")
 	}
@@ -174,7 +173,7 @@ func (c *streamPacketCipher) writeCipherPacket(seqNum uint32, w io.Writer, rand 
 	data = append(data, packetType[:]...)
 	data = append(data, packet[:]...)
 
-	checksum := crc32.ChecksumIEEE(data)
+	checksum := ssh1CRC32(data, len(data))
 	var checkBytes = make([]byte, 4)
 	binary.BigEndian.PutUint32(checkBytes[:], checksum)
 
@@ -257,7 +256,7 @@ func (c *cfbCipher) readCipherPacket(seqNum uint32, r io.Reader) ([1]byte, []byt
 		return packetTypeForError, nil, err
 	}
 
-	checksum := crc32.ChecksumIEEE(c.data)
+	checksum := ssh1CRC32(data, len(data))
 	if checksum != binary.BigEndian.Uint32(c.check[:]) {
 		return packetTypeForError, nil, errors.New("ssh1: CRC32 checksum failed")
 	}
@@ -284,7 +283,7 @@ func (c *cfbCipher) writeCipherPacket(seqNum uint32, w io.Writer, rand io.Reader
 	data = append(data, packetType[:]...)
 	data = append(data, packet[:]...)
 
-	checksum := crc32.ChecksumIEEE(data)
+	checksum := ssh1CRC32(data, len(data))
 	var checkBytes = make([]byte, 4)
 	binary.BigEndian.PutUint32(checkBytes[:], checksum)
 
@@ -393,7 +392,7 @@ func (c *cbcCipher) readCipherPacket(seqNum uint32, r io.Reader) ([1]byte, []byt
 		return packetTypeForError, nil, err
 	}
 
-	checksum := crc32.ChecksumIEEE(c.data)
+	checksum := ssh1CRC32(data, len(data))
 	if checksum != binary.BigEndian.Uint32(c.check[:]) {
 		return packetTypeForError, nil, errors.New("ssh1: CRC32 checksum failed")
 	}
@@ -420,7 +419,7 @@ func (c *cbcCipher) writeCipherPacket(seqNum uint32, w io.Writer, rand io.Reader
 	data = append(data, packetType[:]...)
 	data = append(data, packet[:]...)
 
-	checksum := crc32.ChecksumIEEE(data)
+	checksum := ssh1CRC32(data, len(data))
 	var checkBytes = make([]byte, 4)
 	binary.BigEndian.PutUint32(checkBytes[:], checksum)
 
