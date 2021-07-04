@@ -60,19 +60,25 @@ func CreateCipherMask(ciphers ...int) *Bitmask {
 	return mask
 }
 
+const (
+	// Packet length can't be lesser than 5 because
+	// length of data is a 'length' - 5.
+	minLength = 5
+
+	// See RFC, section The Binary Packet Protocol.
+	maxLength = 262144
+)
+
 // checkLength checks length of package read.
 func checkLength(length uint32) error {
-	if length <= 5 {
+	if length <= minLength {
 		return errors.New("ssh1: invalid packet length, packet too small")
 	}
-	if length > maxPacket {
+	if length > maxLength {
 		return errors.New("ssh1: invalid packet length, packet too large")
 	}
 	return nil
 }
-
-// See RFC, section The Binary Packet Protocol.
-const maxPacket = 262144
 
 type noneCipher struct{}
 
@@ -157,8 +163,8 @@ func (c *streamPacketCipher) readCipherPacket(seqNum uint32, r io.Reader) ([1]by
 // writeCipherPacket encrypts and writes a single packet to the writer argument.
 func (c *streamPacketCipher) writeCipherPacket(seqNum uint32, w io.Writer, rand io.Reader, packetType [1]byte, packet []byte) error {
 	length := len(packetType) + len(packet) + 4
-	if length > maxPacket {
-		return errors.New("ssh1: packet too large")
+	if err := checkLength(uint32(length)); err != nil {
+		return err
 	}
 
 	binary.BigEndian.PutUint32(c.length[:], uint32(length))
@@ -267,8 +273,8 @@ func (c *cfbCipher) readCipherPacket(seqNum uint32, r io.Reader) ([1]byte, []byt
 // writeCipherPacket encrypts and writes a single packet to the writer argument.
 func (c *cfbCipher) writeCipherPacket(seqNum uint32, w io.Writer, rand io.Reader, packetType [1]byte, packet []byte) error {
 	length := len(packetType) + len(packet) + 4
-	if length > maxPacket {
-		return errors.New("ssh1: packet too large")
+	if err := checkLength(uint32(length)); err != nil {
+		return err
 	}
 
 	binary.BigEndian.PutUint32(c.length[:], uint32(length))
@@ -403,8 +409,8 @@ func (c *cbcCipher) readCipherPacket(seqNum uint32, r io.Reader) ([1]byte, []byt
 // writeCipherPacket encrypts and writes a single packet to the writer argument.
 func (c *cbcCipher) writeCipherPacket(seqNum uint32, w io.Writer, rand io.Reader, packetType [1]byte, packet []byte) error {
 	length := len(packetType) + len(packet) + 4
-	if length > maxPacket {
-		return errors.New("ssh1: packet too large")
+	if err := checkLength(uint32(length)); err != nil {
+		return err
 	}
 
 	binary.BigEndian.PutUint32(c.length[:], uint32(length))
