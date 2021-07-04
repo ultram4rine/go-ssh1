@@ -284,7 +284,7 @@ var (
 // in decimal, the packet must start with one of those numbers. In
 // case of error, Unmarshal returns a ParseError or
 // UnexpectedMessageError.
-func Unmarshal(data []byte, out interface{}) error {
+func Unmarshal(packetType byte, data []byte, out interface{}) error {
 	v := reflect.ValueOf(out).Elem()
 	structType := v.Type()
 	expectedTypes := typeTags(structType)
@@ -301,7 +301,7 @@ func Unmarshal(data []byte, out interface{}) error {
 	if len(expectedTypes) > 0 {
 		goodType := false
 		for _, e := range expectedTypes {
-			if e > 0 && data[0] == e {
+			if e > 0 && packetType == e {
 				goodType = true
 				break
 			}
@@ -309,7 +309,6 @@ func Unmarshal(data []byte, out interface{}) error {
 		if !goodType {
 			return fmt.Errorf("ssh1: unexpected message type %d (expected one of %v)", data[0], expectedTypes)
 		}
-		data = data[1:]
 	}
 
 	var ok bool
@@ -684,9 +683,9 @@ func marshalString(to []byte, s []byte) []byte {
 	return to[len(s):]
 }
 
-func decode(packet []byte) (interface{}, error) {
+func decode(packetType byte, packet []byte) (interface{}, error) {
 	var msg interface{}
-	switch packet[0] {
+	switch packetType {
 	case msgDisconnect:
 		msg = new(disconnectMsg)
 	case smsgPublicKey:
@@ -762,7 +761,7 @@ func decode(packet []byte) (interface{}, error) {
 	default:
 		return nil, unexpectedMessageError(0, packet[0])
 	}
-	if err := Unmarshal(packet, msg); err != nil {
+	if err := Unmarshal(packetType, packet, msg); err != nil {
 		return nil, err
 	}
 	return msg, nil

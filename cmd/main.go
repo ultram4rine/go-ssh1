@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"crypto/md5"
 	"encoding/binary"
 	"fmt"
 	"hash/crc32"
@@ -131,8 +132,13 @@ func main() {
 	fmt.Printf("%d == %d ? %t\n", crc, checksum, checksum == crc)
 
 	var pubKey pubKeySmsg
-	err = ssh1.Unmarshal(append(packetTypeBytes, dataBytes...), &pubKey)
+	err = ssh1.Unmarshal(packetTypeBytes[0], dataBytes, &pubKey)
 	log.Println(err)
+
+	fmt.Println(pubKey)
+
+	sessionID := md5.Sum([]byte(pubKey.HostKeyPubModulus.String() + pubKey.ServerKeyPubModulus.String() + string(pubKey.Cookie[:])))
+	fmt.Println(sessionID)
 }
 
 // Return a 32-bit CRC of the data.

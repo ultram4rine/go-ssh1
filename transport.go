@@ -110,7 +110,7 @@ func (s *connectionState) readPacket(r *bufio.Reader) ([1]byte, []byte, error) {
 			// ensures that we don't have to handle it
 			// elsewhere.
 			var msg disconnectMsg
-			if err := Unmarshal(packet, &msg); err != nil {
+			if err := Unmarshal(packetType[0], packet, &msg); err != nil {
 				return packetTypeForError, nil, err
 			}
 			return packetTypeForError, nil, &msg
