@@ -2,7 +2,9 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/md5"
+	"crypto/rand"
 	"encoding/binary"
 	"fmt"
 	"hash/crc32"
@@ -137,8 +139,23 @@ func main() {
 
 	fmt.Println(pubKey)
 
-	sessionID := md5.Sum([]byte(pubKey.HostKeyPubModulus.String() + pubKey.ServerKeyPubModulus.String() + string(pubKey.Cookie[:])))
+	sessionID := md5.Sum(
+		bytes.Join(
+			[][]byte{
+				pubKey.HostKeyPubModulus.Bytes(),
+				pubKey.ServerKeyPubModulus.Bytes(),
+				pubKey.Cookie[:],
+			},
+			[]byte("")),
+	)
 	fmt.Println(sessionID)
+
+	sessionKey := make([]byte, 32)
+	rand.Read(sessionKey)
+	for i := 0; i < 16; i++ {
+		sessionKey[i] ^= sessionID[i]
+	}
+	fmt.Println(sessionKey)
 }
 
 // Return a 32-bit CRC of the data.
