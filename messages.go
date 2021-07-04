@@ -316,12 +316,20 @@ func Unmarshal(packetType byte, data []byte, out interface{}) error {
 		field := v.Field(i)
 		t := field.Type()
 		switch t.Kind() {
-		case reflect.Bool:
+		case reflect.Uint8:
+			fmt.Println("uint8")
 			if len(data) < 1 {
 				return errShortRead
 			}
-			field.SetBool(data[0] != 0)
+			field.SetUint(uint64(data[0]))
 			data = data[1:]
+		case reflect.Uint32:
+			fmt.Println("uint32")
+			var u32 uint32
+			if u32, data, ok = parseUint32(data); !ok {
+				return errShortRead
+			}
+			field.SetUint(uint64(u32))
 		case reflect.Array:
 			fmt.Println("array")
 			if t.Elem().Kind() != reflect.Uint8 {
@@ -334,27 +342,6 @@ func Unmarshal(packetType byte, data []byte, out interface{}) error {
 				field.Index(j).Set(reflect.ValueOf(data[j]))
 			}
 			data = data[t.Len():]
-		case reflect.Uint64:
-			fmt.Println("uint64")
-			var u64 uint64
-			if u64, data, ok = parseUint64(data); !ok {
-				return errShortRead
-			}
-			field.SetUint(u64)
-		case reflect.Uint32:
-			fmt.Println("uint32")
-			var u32 uint32
-			if u32, data, ok = parseUint32(data); !ok {
-				return errShortRead
-			}
-			field.SetUint(uint64(u32))
-		case reflect.Uint8:
-			fmt.Println("uint8")
-			if len(data) < 1 {
-				return errShortRead
-			}
-			field.SetUint(uint64(data[0]))
-			data = data[1:]
 		case reflect.String:
 			fmt.Println("string")
 			var s []byte
