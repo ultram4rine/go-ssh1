@@ -97,7 +97,7 @@ type streamPacketCipher struct {
 	seqNumBytes [4]byte
 	length      [4]byte
 	padding     []byte
-	packetType  [1]byte
+	packetType  byte
 	data        []byte
 	check       [4]byte
 }
@@ -105,10 +105,10 @@ type streamPacketCipher struct {
 // packetTypeForError used when readCipherPacket return error.
 // RFC, section Detailed Description of Packet Types and Formats says that
 // SSH_MSG_NONE is never sent, so we can use it.
-var packetTypeForError = [1]byte{msgNone}
+var packetTypeForError = byte(msgNone)
 
 // readCipherPacket reads and decrypt a single packet from the reader argument.
-func (c *streamPacketCipher) readCipherPacket(seqNum uint32, r io.Reader) ([1]byte, []byte, error) {
+func (c *streamPacketCipher) readCipherPacket(seqNum uint32, r io.Reader) (byte, []byte, error) {
 	if _, err := io.ReadFull(r, c.length[:]); err != nil {
 		return packetTypeForError, nil, err
 	}
@@ -131,10 +131,10 @@ func (c *streamPacketCipher) readCipherPacket(seqNum uint32, r io.Reader) ([1]by
 	data := make([]byte, length-5+paddingLength)
 	data = append(data, c.padding...)
 
-	if _, err := io.ReadFull(r, c.packetType[:]); err != nil {
+	if _, err := io.ReadFull(r, []byte{c.packetType}); err != nil {
 		return packetTypeForError, nil, err
 	}
-	data = append(data, c.packetType[:]...)
+	data = append(data, c.packetType)
 
 	if uint32(cap(c.data)) < length-5 {
 		c.data = make([]byte, length-5)
@@ -161,8 +161,9 @@ func (c *streamPacketCipher) readCipherPacket(seqNum uint32, r io.Reader) ([1]by
 }
 
 // writeCipherPacket encrypts and writes a single packet to the writer argument.
-func (c *streamPacketCipher) writeCipherPacket(seqNum uint32, w io.Writer, rand io.Reader, packetType [1]byte, packet []byte) error {
-	length := len(packetType) + len(packet) + 4
+func (c *streamPacketCipher) writeCipherPacket(seqNum uint32, w io.Writer, rand io.Reader, packetType byte, packet []byte) error {
+	// Packet type + data length + checksum.
+	length := 1 + len(packet) + 4
 	if err := checkLength(uint32(length)); err != nil {
 		return err
 	}
@@ -176,7 +177,7 @@ func (c *streamPacketCipher) writeCipherPacket(seqNum uint32, w io.Writer, rand 
 	}
 
 	data := padding
-	data = append(data, packetType[:]...)
+	data = append(data, packetType)
 	data = append(data, packet[:]...)
 
 	checksum := ssh1CRC32(data, len(data))
@@ -204,7 +205,7 @@ type cfbCipher struct {
 	seqNumBytes [4]byte
 	length      [4]byte
 	padding     []byte
-	packetType  [1]byte
+	packetType  byte
 	data        []byte
 	check       [4]byte
 }
@@ -218,7 +219,7 @@ func newCFBCipher(c cipher.Block, key, iv []byte) packetCipher {
 }
 
 // readCipherPacket reads and decrypt a single packet from the reader argument.
-func (c *cfbCipher) readCipherPacket(seqNum uint32, r io.Reader) ([1]byte, []byte, error) {
+func (c *cfbCipher) readCipherPacket(seqNum uint32, r io.Reader) (byte, []byte, error) {
 	if _, err := io.ReadFull(r, c.length[:]); err != nil {
 		return packetTypeForError, nil, err
 	}
@@ -241,10 +242,10 @@ func (c *cfbCipher) readCipherPacket(seqNum uint32, r io.Reader) ([1]byte, []byt
 	data := make([]byte, length-5+paddingLength)
 	data = append(data, c.padding...)
 
-	if _, err := io.ReadFull(r, c.packetType[:]); err != nil {
+	if _, err := io.ReadFull(r, []byte{c.packetType}); err != nil {
 		return packetTypeForError, nil, err
 	}
-	data = append(data, c.packetType[:]...)
+	data = append(data, c.packetType)
 
 	if uint32(cap(c.data)) < length-5 {
 		c.data = make([]byte, length-5)
@@ -271,8 +272,9 @@ func (c *cfbCipher) readCipherPacket(seqNum uint32, r io.Reader) ([1]byte, []byt
 }
 
 // writeCipherPacket encrypts and writes a single packet to the writer argument.
-func (c *cfbCipher) writeCipherPacket(seqNum uint32, w io.Writer, rand io.Reader, packetType [1]byte, packet []byte) error {
-	length := len(packetType) + len(packet) + 4
+func (c *cfbCipher) writeCipherPacket(seqNum uint32, w io.Writer, rand io.Reader, packetType byte, packet []byte) error {
+	// Packet type + data length + checksum.
+	length := 1 + len(packet) + 4
 	if err := checkLength(uint32(length)); err != nil {
 		return err
 	}
@@ -286,7 +288,7 @@ func (c *cfbCipher) writeCipherPacket(seqNum uint32, w io.Writer, rand io.Reader
 	}
 
 	data := padding
-	data = append(data, packetType[:]...)
+	data = append(data, packetType)
 	data = append(data, packet[:]...)
 
 	checksum := ssh1CRC32(data, len(data))
@@ -325,7 +327,7 @@ type cbcCipher struct {
 	seqNumBytes [4]byte
 	length      [4]byte
 	padding     []byte
-	packetType  [1]byte
+	packetType  byte
 	data        []byte
 	check       [4]byte
 
@@ -354,7 +356,7 @@ func maxUInt32(a, b int) uint32 {
 }
 
 // readCipherPacket reads and decrypt a single packet from the reader argument.
-func (c *cbcCipher) readCipherPacket(seqNum uint32, r io.Reader) ([1]byte, []byte, error) {
+func (c *cbcCipher) readCipherPacket(seqNum uint32, r io.Reader) (byte, []byte, error) {
 	if _, err := io.ReadFull(r, c.length[:]); err != nil {
 		return packetTypeForError, nil, err
 	}
@@ -377,10 +379,10 @@ func (c *cbcCipher) readCipherPacket(seqNum uint32, r io.Reader) ([1]byte, []byt
 	data := make([]byte, length-5+paddingLength)
 	data = append(data, c.padding...)
 
-	if _, err := io.ReadFull(r, c.packetType[:]); err != nil {
+	if _, err := io.ReadFull(r, []byte{c.packetType}); err != nil {
 		return packetTypeForError, nil, err
 	}
-	data = append(data, c.packetType[:]...)
+	data = append(data, c.packetType)
 
 	if uint32(cap(c.data)) < length-5 {
 		c.data = make([]byte, length-5)
@@ -407,8 +409,9 @@ func (c *cbcCipher) readCipherPacket(seqNum uint32, r io.Reader) ([1]byte, []byt
 }
 
 // writeCipherPacket encrypts and writes a single packet to the writer argument.
-func (c *cbcCipher) writeCipherPacket(seqNum uint32, w io.Writer, rand io.Reader, packetType [1]byte, packet []byte) error {
-	length := len(packetType) + len(packet) + 4
+func (c *cbcCipher) writeCipherPacket(seqNum uint32, w io.Writer, rand io.Reader, packetType byte, packet []byte) error {
+	// Packet type + data length + checksum.
+	length := 1 + len(packet) + 4
 	if err := checkLength(uint32(length)); err != nil {
 		return err
 	}
@@ -422,7 +425,7 @@ func (c *cbcCipher) writeCipherPacket(seqNum uint32, w io.Writer, rand io.Reader
 	}
 
 	data := padding
-	data = append(data, packetType[:]...)
+	data = append(data, packetType)
 	data = append(data, packet[:]...)
 
 	checksum := ssh1CRC32(data, len(data))
