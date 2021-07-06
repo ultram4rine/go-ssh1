@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"crypto/rand"
+	"crypto/rsa"
 	"encoding/binary"
 	"fmt"
 	"hash/crc32"
@@ -155,7 +156,40 @@ func main() {
 	for i := 0; i < 16; i++ {
 		sessionKey[i] ^= sessionID[i]
 	}
-	fmt.Println(sessionKey)
+	res := pubKey.ServerKeyPubModulus.Cmp(pubKey.HostKeyPubModulus)
+	var (
+		fst = new(rsa.PublicKey)
+		snd = new(rsa.PublicKey)
+	)
+	if res == -1 {
+		fst.N = pubKey.ServerKeyPubModulus
+		fst.E = int(pubKey.ServerKeyPubExponent.Int64())
+		snd.N = pubKey.HostKeyPubModulus
+		snd.E = int(pubKey.HostKeyPubExponent.Int64())
+	} else {
+		fst.N = pubKey.HostKeyPubModulus
+		snd.E = int(pubKey.HostKeyPubExponent.Int64())
+		snd.N = pubKey.ServerKeyPubModulus
+		fst.E = int(pubKey.ServerKeyPubExponent.Int64())
+	}
+	sessionKey, err = rsa.EncryptPKCS1v15(rand.Reader, fst, sessionKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+	sessionKey, err = rsa.EncryptPKCS1v15(rand.Reader, snd, sessionKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(len(sessionKey))
+
+	var sessionKeyMsg sessionKeyCmsg
+	sessionKeyMsg.Cipher = ssh1.SSH_CIPHER_DES
+	sessionKeyMsg.Cookie = pubKey.Cookie
+	var key = new(big.Int)
+	sessionKeyMsg.SessionKey = key.SetBytes(sessionKey)
+	sessionKeyMsg.ProtocolFlags = 0
+	pt, dataMsg := ssh1.Marshal(sessionKeyMsg)
+	fmt.Println(pt, dataMsg)
 }
 
 // Return a 32-bit CRC of the data.
@@ -178,4 +212,11 @@ type pubKeySmsg struct {
 	ProtocolFlags        uint32
 	CipherMask           uint32
 	AuthMask             uint32
+}
+
+type sessionKeyCmsg struct {
+	Cipher        byte `ssh1type:"3"`
+	Cookie        [8]byte
+	SessionKey    *big.Int
+	ProtocolFlags uint32
 }
