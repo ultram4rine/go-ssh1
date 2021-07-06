@@ -513,6 +513,20 @@ func intLength(n *big.Int) int {
 	return length
 }
 
+func appendU32(buf []byte, n uint32) []byte {
+	return append(buf, byte(n>>24), byte(n>>16), byte(n>>8), byte(n))
+}
+
+func appendString(buf []byte, s string) []byte {
+	buf = appendU32(buf, uint32(len(s)))
+	buf = append(buf, s...)
+	return buf
+}
+
+func appendInt(buf []byte, n int) []byte {
+	return appendU32(buf, uint32(n))
+}
+
 func marshalUint32(to []byte, n uint32) []byte {
 	binary.BigEndian.PutUint32(to, n)
 	return to[4:]

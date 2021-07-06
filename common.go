@@ -1,6 +1,9 @@
 package ssh1
 
-import "fmt"
+import (
+	"fmt"
+	"hash/crc32"
+)
 
 const protocolMajor = 1
 const protocolMinor = 5
@@ -18,16 +21,11 @@ func parseError(tag uint8) error {
 	return fmt.Errorf("ssh: parse error in message type %d", tag)
 }
 
-func appendString(buf []byte, s string) []byte {
-	buf = appendU32(buf, uint32(len(s)))
-	buf = append(buf, s...)
-	return buf
-}
-
-func appendU32(buf []byte, n uint32) []byte {
-	return append(buf, byte(n>>24), byte(n>>16), byte(n>>8), byte(n))
-}
-
-func appendInt(buf []byte, n int) []byte {
-	return appendU32(buf, uint32(n))
+// Return a 32-bit CRC of the data.
+func ssh1CRC32(data []byte, len int) uint32 {
+	var crc32val uint32
+	for i := 0; i < len; i++ {
+		crc32val = crc32.IEEETable[(crc32val^uint32(data[i]))&0xff] ^ (crc32val >> 8)
+	}
+	return crc32val
 }
