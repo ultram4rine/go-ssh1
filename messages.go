@@ -1,7 +1,6 @@
 package ssh1
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -330,6 +329,24 @@ func Unmarshal(packetType byte, data []byte, out interface{}) error {
 				return errShortRead
 			}
 			field.SetUint(uint64(u32))
+		case reflect.String:
+			fmt.Println("string")
+			var s []byte
+			if s, data, ok = parseString(data); !ok {
+				return fieldError(structType, i, "")
+			}
+			field.SetString(string(s))
+		case reflect.Ptr:
+			fmt.Println("ptr")
+			if t == bigIntType {
+				var n *big.Int
+				if n, data, ok = parseInt(data); !ok {
+					return errShortRead
+				}
+				field.Set(reflect.ValueOf(n))
+			} else {
+				return fieldError(structType, i, "pointer to unsupported type")
+			}
 		case reflect.Array:
 			fmt.Println("array")
 			if t.Elem().Kind() != reflect.Uint8 {
@@ -342,46 +359,20 @@ func Unmarshal(packetType byte, data []byte, out interface{}) error {
 				field.Index(j).Set(reflect.ValueOf(data[j]))
 			}
 			data = data[t.Len():]
-		case reflect.String:
-			fmt.Println("string")
-			var s []byte
-			if s, data, ok = parseString(data); !ok {
-				return fieldError(structType, i, "")
-			}
-			field.SetString(string(s))
 		case reflect.Slice:
 			fmt.Println("slice")
-			switch t.Elem().Kind() {
-			case reflect.Uint8:
-				if structType.Field(i).Tag.Get("ssh") == "rest" {
-					field.Set(reflect.ValueOf(data))
-					data = nil
-				} else {
-					var s []byte
-					if s, data, ok = parseString(data); !ok {
-						return errShortRead
-					}
-					field.Set(reflect.ValueOf(s))
-				}
-			case reflect.String:
-				var nl []string
-				if nl, data, ok = parseNameList(data); !ok {
-					return errShortRead
-				}
-				field.Set(reflect.ValueOf(nl))
-			default:
+			if t.Elem().Kind() != reflect.Uint8 {
 				return fieldError(structType, i, "slice of unsupported type")
 			}
-		case reflect.Ptr:
-			fmt.Println("ptr")
-			if t == bigIntType {
-				var n *big.Int
-				if n, data, ok = parseInt(data); !ok {
+			if structType.Field(i).Tag.Get("ssh") == "rest" {
+				field.Set(reflect.ValueOf(data))
+				data = nil
+			} else {
+				var s []byte
+				if s, data, ok = parseString(data); !ok {
 					return errShortRead
 				}
-				field.Set(reflect.ValueOf(n))
-			} else {
-				return fieldError(structType, i, "pointer to unsupported type")
+				field.Set(reflect.ValueOf(s))
 			}
 		default:
 			return fieldError(structType, i, fmt.Sprintf("unsupported type: %v", t))
@@ -394,6 +385,47 @@ func Unmarshal(packetType byte, data []byte, out interface{}) error {
 	}
 
 	return nil
+}
+
+func parseUint32(in []byte) (uint32, []byte, bool) {
+	if len(in) < 4 {
+		return 0, nil, false
+	}
+	return binary.BigEndian.Uint32(in), in[4:], true
+}
+
+func parseString(in []byte) (out, rest []byte, ok bool) {
+	if len(in) < 4 {
+		return
+	}
+	fmt.Println("ok")
+	length := binary.BigEndian.Uint32(in)
+	in = in[4:]
+	if uint32(len(in)) < length {
+		return
+	}
+	fmt.Println("ok")
+	out = in[:length]
+	rest = in[length:]
+	ok = true
+	return
+}
+
+func parseInt(in []byte) (out *big.Int, rest []byte, ok bool) {
+	if len(in) < 2 {
+		return
+	}
+
+	bits := binary.BigEndian.Uint16(in)
+	in = in[2:]
+
+	out = new(big.Int)
+	out.SetBytes(in[:((bits+7)/8)+1])
+
+	rest = in[(bits+7)/8:]
+	ok = true
+
+	return
 }
 
 // Marshal serializes the message in msg to SSH wire format.  The msg
@@ -417,53 +449,14 @@ func marshalStruct(out []byte, msg interface{}) (byte, []byte) {
 	for i, n := 0, v.NumField(); i < n; i++ {
 		field := v.Field(i)
 		switch t := field.Type(); t.Kind() {
-		case reflect.Bool:
-			var v uint8
-			if field.Bool() {
-				v = 1
-			}
-			out = append(out, v)
-		case reflect.Array:
-			if t.Elem().Kind() != reflect.Uint8 {
-				panic(fmt.Sprintf("array of non-uint8 in field %d: %T", i, field.Interface()))
-			}
-			for j, l := 0, t.Len(); j < l; j++ {
-				out = append(out, uint8(field.Index(j).Uint()))
-			}
-		case reflect.Uint32:
-			out = appendU32(out, uint32(field.Uint()))
-		case reflect.Uint64:
-			out = appendU64(out, uint64(field.Uint()))
 		case reflect.Uint8:
 			out = append(out, uint8(field.Uint()))
+		case reflect.Uint32:
+			out = appendU32(out, uint32(field.Uint()))
 		case reflect.String:
 			s := field.String()
 			out = appendInt(out, len(s))
 			out = append(out, s...)
-		case reflect.Slice:
-			switch t.Elem().Kind() {
-			case reflect.Uint8:
-				if v.Type().Field(i).Tag.Get("ssh") != "rest" {
-					out = appendInt(out, field.Len())
-				}
-				out = append(out, field.Bytes()...)
-			case reflect.String:
-				offset := len(out)
-				out = appendU32(out, 0)
-				if n := field.Len(); n > 0 {
-					for j := 0; j < n; j++ {
-						f := field.Index(j)
-						if j != 0 {
-							out = append(out, ',')
-						}
-						out = append(out, f.String()...)
-					}
-					// overwrite length value
-					binary.BigEndian.PutUint32(out[offset:], uint32(len(out)-offset-4))
-				}
-			default:
-				panic(fmt.Sprintf("slice of unknown type in field %d: %T", i, field.Interface()))
-			}
 		case reflect.Ptr:
 			if t == bigIntType {
 				var n *big.Int
@@ -482,103 +475,40 @@ func marshalStruct(out []byte, msg interface{}) (byte, []byte) {
 			} else {
 				panic(fmt.Sprintf("pointer to unknown type in field %d: %T", i, field.Interface()))
 			}
+		case reflect.Array:
+			if t.Elem().Kind() != reflect.Uint8 {
+				panic(fmt.Sprintf("array of non-uint8 in field %d: %T", i, field.Interface()))
+			}
+			for j, l := 0, t.Len(); j < l; j++ {
+				out = append(out, uint8(field.Index(j).Uint()))
+			}
+		case reflect.Slice:
+			if t.Elem().Kind() != reflect.Uint8 {
+				panic(fmt.Sprintf("slice of non-uint8 in field %d: %T", i, field.Interface()))
+			}
+			if v.Type().Field(i).Tag.Get("ssh") != "rest" {
+				out = appendInt(out, field.Len())
+			}
+			out = append(out, field.Bytes()...)
 		}
 	}
 
 	return packetType, out
 }
 
-func parseString(in []byte) (out, rest []byte, ok bool) {
-	if len(in) < 4 {
-		return
-	}
-	fmt.Println("ok")
-	length := binary.BigEndian.Uint32(in)
-	in = in[4:]
-	if uint32(len(in)) < length {
-		return
-	}
-	fmt.Println("ok")
-	out = in[:length]
-	rest = in[length:]
-	ok = true
-	return
-}
-
-var (
-	comma         = []byte{','}
-	emptyNameList = []string{}
-)
-
-func parseNameList(in []byte) (out []string, rest []byte, ok bool) {
-	contents, rest, ok := parseString(in)
-	if !ok {
-		return
-	}
-	if len(contents) == 0 {
-		out = emptyNameList
-		return
-	}
-	parts := bytes.Split(contents, comma)
-	out = make([]string, len(parts))
-	for i, part := range parts {
-		out[i] = string(part)
-	}
-	return
-}
-
-func parseInt(in []byte) (out *big.Int, rest []byte, ok bool) {
-	if len(in) < 2 {
-		return
-	}
-
-	bits := binary.BigEndian.Uint16(in)
-	in = in[2:]
-
-	out = new(big.Int)
-	out.SetBytes(in[:((bits+7)/8)+1])
-
-	rest = in[(bits+7)/8:]
-	ok = true
-
-	return
-}
-
-func parseUint32(in []byte) (uint32, []byte, bool) {
-	if len(in) < 4 {
-		return 0, nil, false
-	}
-	return binary.BigEndian.Uint32(in), in[4:], true
-}
-
-func parseUint64(in []byte) (uint64, []byte, bool) {
-	if len(in) < 8 {
-		return 0, nil, false
-	}
-	return binary.BigEndian.Uint64(in), in[8:], true
+func stringLength(n int) int {
+	return 4 + n
 }
 
 func intLength(n *big.Int) int {
-	length := 4 /* length bytes */
-	if n.Sign() < 0 {
-		nMinus1 := new(big.Int).Neg(n)
-		nMinus1.Sub(nMinus1, bigOne)
-		bitLen := nMinus1.BitLen()
-		if bitLen%8 == 0 {
-			// The number will need 0xff padding
-			length++
-		}
-		length += (bitLen + 7) / 8
-	} else if n.Sign() == 0 {
-		// A zero is the zero length string
-	} else {
-		bitLen := n.BitLen()
-		if bitLen%8 == 0 {
-			// The number will need 0x00 padding
-			length++
-		}
-		length += (bitLen + 7) / 8
+	length := 2 /* length bytes */
+
+	bitLen := n.BitLen()
+	if bitLen%8 == 0 {
+		// The number will need 0x00 padding
+		length++
 	}
+	length += (bitLen + 7) / 8
 
 	return length
 }
@@ -588,9 +518,24 @@ func marshalUint32(to []byte, n uint32) []byte {
 	return to[4:]
 }
 
-func marshalUint64(to []byte, n uint64) []byte {
-	binary.BigEndian.PutUint64(to, n)
-	return to[8:]
+func marshalString(to []byte, s []byte) []byte {
+	to[0] = byte(len(s) >> 24)
+	to[1] = byte(len(s) >> 16)
+	to[2] = byte(len(s) >> 8)
+	to[3] = byte(len(s))
+	to = to[4:]
+	copy(to, s)
+	return to[len(s):]
+}
+
+func writeString(w io.Writer, s []byte) {
+	var lengthBytes [4]byte
+	lengthBytes[0] = byte(len(s) >> 24)
+	lengthBytes[1] = byte(len(s) >> 16)
+	lengthBytes[2] = byte(len(s) >> 8)
+	lengthBytes[3] = byte(len(s))
+	w.Write(lengthBytes[:])
+	w.Write(s)
 }
 
 func marshalInt(to []byte, n *big.Int) []byte {
@@ -598,40 +543,17 @@ func marshalInt(to []byte, n *big.Int) []byte {
 	to = to[4:]
 	length := 0
 
-	if n.Sign() < 0 {
-		// A negative number has to be converted to two's-complement
-		// form. So we'll subtract 1 and invert. If the
-		// most-significant-bit isn't set then we'll need to pad the
-		// beginning with 0xff in order to keep the number negative.
-		nMinus1 := new(big.Int).Neg(n)
-		nMinus1.Sub(nMinus1, bigOne)
-		bytes := nMinus1.Bytes()
-		for i := range bytes {
-			bytes[i] ^= 0xff
-		}
-		if len(bytes) == 0 || bytes[0]&0x80 == 0 {
-			to[0] = 0xff
-			to = to[1:]
-			length++
-		}
-		nBytes := copy(to, bytes)
-		to = to[nBytes:]
-		length += nBytes
-	} else if n.Sign() == 0 {
-		// A zero is the zero length string
-	} else {
-		bytes := n.Bytes()
-		if len(bytes) > 0 && bytes[0]&0x80 != 0 {
-			// We'll have to pad this with a 0x00 in order to
-			// stop it looking like a negative number.
-			to[0] = 0
-			to = to[1:]
-			length++
-		}
-		nBytes := copy(to, bytes)
-		to = to[nBytes:]
-		length += nBytes
+	bytes := n.Bytes()
+	if len(bytes) > 0 && bytes[0]&0x80 != 0 {
+		// We'll have to pad this with a 0x00 in order to
+		// stop it looking like a negative number.
+		to[0] = 0
+		to = to[1:]
+		length++
 	}
+	nBytes := copy(to, bytes)
+	to = to[nBytes:]
+	length += nBytes
 
 	lengthBytes[0] = byte(length >> 24)
 	lengthBytes[1] = byte(length >> 16)
@@ -645,30 +567,6 @@ func writeInt(w io.Writer, n *big.Int) {
 	buf := make([]byte, length)
 	marshalInt(buf, n)
 	w.Write(buf)
-}
-
-func writeString(w io.Writer, s []byte) {
-	var lengthBytes [4]byte
-	lengthBytes[0] = byte(len(s) >> 24)
-	lengthBytes[1] = byte(len(s) >> 16)
-	lengthBytes[2] = byte(len(s) >> 8)
-	lengthBytes[3] = byte(len(s))
-	w.Write(lengthBytes[:])
-	w.Write(s)
-}
-
-func stringLength(n int) int {
-	return 4 + n
-}
-
-func marshalString(to []byte, s []byte) []byte {
-	to[0] = byte(len(s) >> 24)
-	to[1] = byte(len(s) >> 16)
-	to[2] = byte(len(s) >> 8)
-	to[3] = byte(len(s))
-	to = to[4:]
-	copy(to, s)
-	return to[len(s):]
 }
 
 func decode(packetType byte, packet []byte) (interface{}, error) {
