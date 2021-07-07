@@ -183,27 +183,27 @@ func (c *streamPacketCipher) writeCipherPacket(seqNum uint32, w io.Writer, rand 
 	binary.BigEndian.PutUint32(c.length[:], uint32(length))
 
 	paddingLength := 8 - (length % 8)
-	padding := c.padding[:paddingLength]
-	if _, err := io.ReadFull(rand, padding); err != nil {
-		return err
+	if cap(c.padding) < paddingLength {
+		c.padding = make([]byte, paddingLength)
+	} else {
+		c.padding = c.padding[:paddingLength]
 	}
+	padding := c.padding
+	/*if _, err := io.ReadFull(rand, padding); err != nil {
+		return err
+	}*/
 
-	data := padding
-	data = append(data, packetType)
-	data = append(data, packet[:]...)
+	data := append(padding, packetType)
+	data = append(data, packet...)
 
 	checksum := ssh1CRC32(data, len(data))
-	var checkBytes = make([]byte, 4)
-	binary.BigEndian.PutUint32(checkBytes[:], checksum)
+	binary.BigEndian.PutUint32(c.check[:], checksum)
 
-	data = append(data, checkBytes[:]...)
+	data = append(data, c.check[:]...)
 
 	c.cipher.XORKeyStream(data, data)
 
-	if _, err := w.Write(c.length[:]); err != nil {
-		return err
-	}
-	if _, err := w.Write(data); err != nil {
+	if _, err := w.Write(append(c.length[:], data...)); err != nil {
 		return err
 	}
 
