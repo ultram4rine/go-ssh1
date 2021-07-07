@@ -35,6 +35,39 @@ func ssh1CRC32(data []byte, len int) uint32 {
 	return crc32val
 }
 
+// createSessionKey.
+func createSessionKey(sessionID [16]byte, serverKey *rsa.PublicKey, hostKey *rsa.PublicKey) ([]byte, error) {
+	var (
+		smaller *rsa.PublicKey
+		larger  *rsa.PublicKey
+		res     = serverKey.N.Cmp(hostKey.N)
+	)
+	if res == -1 {
+		smaller = serverKey
+		larger = hostKey
+	} else {
+		smaller = hostKey
+		larger = serverKey
+	}
+
+	sessionKey := make([]byte, 32)
+	rand.Read(sessionKey)
+	for i := 0; i < 16; i++ {
+		sessionKey[i] ^= sessionID[i]
+	}
+
+	sessionKey, err := rsa.EncryptPKCS1v15(rand.Reader, smaller, sessionKey)
+	if err != nil {
+		return nil, err
+	}
+	sessionKey, err = rsa.EncryptPKCS1v15(rand.Reader, larger, sessionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return sessionKey, nil
+}
+
 // HostKeyCallback is the function type used for verifying server
 // keys.  A HostKeyCallback must return nil if the host key is OK, or
 // an error to reject it. It receives the hostname as passed to Dial
