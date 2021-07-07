@@ -83,16 +83,16 @@ type pubKeySmsg struct {
 	HostKey              uint32
 	HostKeyPubExponent   *big.Int
 	HostKeyPubModulus    *big.Int
-	ProtocolFlags        uint32
-	CipherMask           uint32
-	AuthMask             uint32
+	ProtocolFlags        Bitmask
+	CipherMask           Bitmask
+	AuthMask             Bitmask
 }
 
 type sessionKeyCmsg struct {
 	Cipher        byte `ssh1type:"3"`
 	Cookie        [8]byte
 	SessionKey    *big.Int
-	ProtocolFlags uint32
+	ProtocolFlags Bitmask
 }
 
 type userCmsg struct {
