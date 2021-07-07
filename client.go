@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/md5"
+	"crypto/rand"
 	"crypto/rsa"
 	"errors"
 	"fmt"
@@ -79,14 +80,14 @@ func NewClientConn(c net.Conn, addr string, config *Config) (*sshConn, error) {
 	conf.SetDefaults()
 	if conf.HostKeyCallback == nil {
 		c.Close()
-		return nil, errors.New("ssh: must specify HostKeyCallback")
+		return nil, errors.New("ssh1: must specify HostKeyCallback")
 	}
 
 	conn := &sshConn{conn: c, user: conf.User}
 
 	if err := conn.handshake(addr, &conf); err != nil {
 		c.Close()
-		return nil, fmt.Errorf("ssh: handshake failed: %v", err)
+		return nil, fmt.Errorf("ssh1: handshake failed: %v", err)
 	}
 	return conn, nil
 }
@@ -157,9 +158,9 @@ func keyExchange(conn net.Conn) (sessionID [16]byte, err error) {
 		reader = connectionState{
 			packetCipher: &streamPacketCipher{cipher: noneCipher{}},
 		}
-		/*writer = connectionState{
+		writer = connectionState{
 			packetCipher: &streamPacketCipher{cipher: noneCipher{}},
-		}*/
+		}
 	)
 
 	r := bufio.NewReader(conn)
@@ -167,9 +168,8 @@ func keyExchange(conn net.Conn) (sessionID [16]byte, err error) {
 	if err != nil {
 		return
 	}
-
 	if pt != smsgPublicKey {
-		err = fmt.Errorf("ssh1: first message should be SSH_SMSG_PUBLIC_KEY (2), got: %d", pt)
+		err = fmt.Errorf("first message should be SSH_SMSG_PUBLIC_KEY (2), got %d", pt)
 		return
 	}
 
@@ -178,7 +178,6 @@ func keyExchange(conn net.Conn) (sessionID [16]byte, err error) {
 	if err != nil {
 		return
 	}
-	fmt.Println(pubKey)
 
 	sessionID = md5.Sum(
 		bytes.Join(
@@ -205,16 +204,39 @@ func keyExchange(conn net.Conn) (sessionID [16]byte, err error) {
 		return
 	}
 
-	var sessionKeyMsg sessionKeyCmsg
 	c, err := chooseCipher(pubKey.CipherMask)
 	if err != nil {
 		return
 	}
-	sessionKeyMsg.Cipher = byte(c)
-	sessionKeyMsg.Cookie = pubKey.Cookie
-	var key = new(big.Int)
-	sessionKeyMsg.SessionKey = key.SetBytes(sessionKey)
-	sessionKeyMsg.ProtocolFlags = 0
+	var (
+		key = new(big.Int)
+		msg = sessionKeyCmsg{
+			Cipher:        byte(c),
+			Cookie:        pubKey.Cookie,
+			SessionKey:    key.SetBytes(sessionKey),
+			ProtocolFlags: 0,
+		}
+	)
+
+	packetType, packet := Marshal(msg)
+	if packetType != 3 {
+		err = fmt.Errorf("SSH_CMSG_SESSION_KEY (3) should be sended, found %d", packetType)
+		return
+	}
+	w := bufio.NewWriter(conn)
+	err = writer.writePacket(w, rand.Reader, packetType, packet)
+	if err != nil {
+		return
+	}
+
+	pt, _, err = reader.readPacket(r)
+	if err != nil {
+		return
+	}
+	if pt != smsgSuccess {
+		err = fmt.Errorf("SSH_SMSG_SUCCESS (14) expected, got %d", pt)
+		return
+	}
 
 	return
 }
