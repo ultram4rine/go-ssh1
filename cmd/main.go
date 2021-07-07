@@ -1,23 +1,16 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
-	"crypto/md5"
-	"crypto/rand"
-	"crypto/rsa"
-	"encoding/binary"
 	"fmt"
 	"hash/crc32"
-	"log"
 	"math/big"
-	"net"
+	"time"
 
 	"github.com/ultram4rine/go-ssh1"
 )
 
 func main() {
-	conn, err := net.Dial("tcp", "192.168.111.55:22")
+	/*conn, err := net.Dial("tcp", "192.168.111.55:22")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -45,11 +38,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	for _, b := range lenBytes {
-		fmt.Printf("%08b ", b)
-	}
 	var length = binary.BigEndian.Uint32(lenBytes)
-	fmt.Printf("= %d\n", length)
 
 	// read padding.
 	fmt.Println("Read padding")
@@ -59,12 +48,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	for _, b := range paddingBytes {
-		fmt.Printf("%08b ", b)
-	}
-	var padding = binary.BigEndian.Uint32(paddingBytes)
-	fmt.Printf("= %d\n", padding)
-
 	// read packet type.
 	fmt.Println("Read packet type")
 	var packetTypeBytes = make([]byte, 1)
@@ -73,12 +56,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	for _, b := range packetTypeBytes {
-		fmt.Printf("%08b ", b)
-	}
-	var packetType = uint8(packetTypeBytes[0])
-	fmt.Printf("= %d\n", packetType)
-
 	// read data.
 	fmt.Println("Read data")
 	var dataBytes = make([]byte, length-5)
@@ -86,30 +63,21 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	for _, b := range dataBytes {
-		fmt.Printf("%08b ", b)
-	}
 
 	// decode data.
 	fmt.Println("\nDecode data")
 	var (
 		ciphersBytes = dataBytes[length-5-4-4 : length-5-4]
-		authBytes    = dataBytes[length-5-4 : length-5]
+		//authBytes    = dataBytes[length-5-4 : length-5]
 	)
 
-	fmt.Println("Ciphers bitmask")
-	for _, b := range ciphersBytes {
-		fmt.Printf("%08b ", b)
+	var ciphers = ssh1.Bitmask(binary.BigEndian.Uint32(ciphersBytes))
+	for b, n := range ssh1.CipherNames {
+		if ciphers.HasFlag(b) {
+			fmt.Println("supported cipher:", n)
+		}
 	}
-	var ciphers = binary.BigEndian.Uint32(ciphersBytes)
-	fmt.Printf("= %d\n", ciphers)
-
-	fmt.Println("Auth bitmask")
-	for _, b := range authBytes {
-		fmt.Printf("%08b ", b)
-	}
-	var auth = binary.BigEndian.Uint32(authBytes)
-	fmt.Printf("= %d\n", auth)
+	//var auth = binary.BigEndian.Uint32(authBytes)
 
 	// read crc.
 	fmt.Println("Read checksum")
@@ -119,17 +87,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	for _, b := range crcBytes {
-		fmt.Printf("%08b ", b)
-	}
 	var crc = binary.BigEndian.Uint32(crcBytes)
-	fmt.Printf("= %d\n", crc)
 
 	data := make([]byte, 0, (8-(length%8))+1+length-5)
 	data = append(data, paddingBytes...)
 	data = append(data, packetTypeBytes...)
 	data = append(data, dataBytes...)
-	fmt.Println(len(data))
 
 	checksum := ssh1CRC32(data, len(data))
 	fmt.Printf("%d == %d ? %t\n", crc, checksum, checksum == crc)
@@ -189,7 +152,10 @@ func main() {
 	sessionKeyMsg.SessionKey = key.SetBytes(sessionKey)
 	sessionKeyMsg.ProtocolFlags = 0
 	pt, dataMsg := ssh1.Marshal(sessionKeyMsg)
-	fmt.Println(pt, dataMsg)
+	fmt.Println(pt, dataMsg)*/
+
+	_, err := ssh1.Dial("192.168.111.55:22", &ssh1.Config{Timeout: 30 * time.Second, HostKeyCallback: ssh1.InsecureIgnoreHostKey()})
+	fmt.Println(err)
 }
 
 // Return a 32-bit CRC of the data.
