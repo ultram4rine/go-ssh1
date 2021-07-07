@@ -504,10 +504,6 @@ func intLength(n *big.Int) int {
 	length := 2 /* length bytes */
 
 	bitLen := n.BitLen()
-	if bitLen%8 == 0 {
-		// The number will need 0x00 padding
-		length++
-	}
 	length += (bitLen + 7) / 8
 
 	return length
@@ -554,25 +550,16 @@ func writeString(w io.Writer, s []byte) {
 
 func marshalInt(to []byte, n *big.Int) []byte {
 	lengthBytes := to
-	to = to[4:]
+	to = to[2:]
 	length := 0
 
 	bytes := n.Bytes()
-	if len(bytes) > 0 && bytes[0]&0x80 != 0 {
-		// We'll have to pad this with a 0x00 in order to
-		// stop it looking like a negative number.
-		to[0] = 0
-		to = to[1:]
-		length++
-	}
 	nBytes := copy(to, bytes)
 	to = to[nBytes:]
-	length += nBytes
+	length += nBytes * 8
 
-	lengthBytes[0] = byte(length >> 24)
-	lengthBytes[1] = byte(length >> 16)
-	lengthBytes[2] = byte(length >> 8)
-	lengthBytes[3] = byte(length)
+	lengthBytes[0] = byte(length >> 8)
+	lengthBytes[1] = byte(length)
 	return to
 }
 
