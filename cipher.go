@@ -29,7 +29,7 @@ const (
 	SSH_CIPHER_BLOWFISH
 )
 
-var cipherNames = map[int]string{
+var CipherNames = map[int]string{
 	SSH_CIPHER_IDEA:     "idea",
 	SSH_CIPHER_DES:      "des",
 	SSH_CIPHER_3DES:     "3des",
@@ -46,12 +46,12 @@ func CreateCipherMask(ciphers ...int) *Bitmask {
 	if len(ciphers) <= 0 {
 		panic("ssh1: too few ciphers")
 	}
-	if len(ciphers) > len(cipherNames) {
+	if len(ciphers) > len(CipherNames) {
 		panic("ssh1: too many ciphers")
 	}
 
 	for _, c := range ciphers {
-		if _, ok := cipherNames[c]; !ok {
+		if _, ok := CipherNames[c]; !ok {
 			panic("ssh1: chosen cipher doesn't supported")
 		}
 		mask.addFlag(c)
@@ -131,9 +131,11 @@ func (c *streamPacketCipher) readCipherPacket(seqNum uint32, r io.Reader) (byte,
 	data := make([]byte, length-5+paddingLength)
 	data = append(data, c.padding...)
 
-	if _, err := io.ReadFull(r, []byte{c.packetType}); err != nil {
+	packetTypeBytes := make([]byte, 1)
+	if _, err := io.ReadFull(r, packetTypeBytes); err != nil {
 		return packetTypeForError, nil, err
 	}
+	c.packetType = packetTypeBytes[0]
 	data = append(data, c.packetType)
 
 	if uint32(cap(c.data)) < length-5 {
@@ -242,9 +244,11 @@ func (c *cfbCipher) readCipherPacket(seqNum uint32, r io.Reader) (byte, []byte, 
 	data := make([]byte, length-5+paddingLength)
 	data = append(data, c.padding...)
 
-	if _, err := io.ReadFull(r, []byte{c.packetType}); err != nil {
+	packetTypeBytes := make([]byte, 1)
+	if _, err := io.ReadFull(r, packetTypeBytes); err != nil {
 		return packetTypeForError, nil, err
 	}
+	c.packetType = packetTypeBytes[0]
 	data = append(data, c.packetType)
 
 	if uint32(cap(c.data)) < length-5 {
@@ -379,9 +383,11 @@ func (c *cbcCipher) readCipherPacket(seqNum uint32, r io.Reader) (byte, []byte, 
 	data := make([]byte, length-5+paddingLength)
 	data = append(data, c.padding...)
 
-	if _, err := io.ReadFull(r, []byte{c.packetType}); err != nil {
+	packetTypeBytes := make([]byte, 1)
+	if _, err := io.ReadFull(r, packetTypeBytes); err != nil {
 		return packetTypeForError, nil, err
 	}
+	c.packetType = packetTypeBytes[0]
 	data = append(data, c.packetType)
 
 	if uint32(cap(c.data)) < length-5 {
