@@ -37,6 +37,16 @@ var CipherNames = map[int]string{
 	SSH_CIPHER_BLOWFISH: "blowfish",
 }
 
+func chooseCipher(ciphersMask Bitmask) (int, error) {
+	if ciphersMask.hasFlag(SSH_CIPHER_3DES) {
+		return SSH_CIPHER_3DES, nil
+	} else if ciphersMask.hasFlag(SSH_CIPHER_DES) {
+		return SSH_CIPHER_DES, nil
+	} else {
+		return 0, errors.New("ssh1: no supported cipher was found")
+	}
+}
+
 // CreateCipherMask returns a bitmask of chosen ciphers or panic
 // if cipher not supported or length of chosen ciphers too small
 // or too big.

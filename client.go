@@ -206,7 +206,11 @@ func keyExchange(conn net.Conn) (sessionID [16]byte, err error) {
 	}
 
 	var sessionKeyMsg sessionKeyCmsg
-	sessionKeyMsg.Cipher = SSH_CIPHER_DES
+	c, err := chooseCipher(pubKey.CipherMask)
+	if err != nil {
+		return
+	}
+	sessionKeyMsg.Cipher = byte(c)
 	sessionKeyMsg.Cookie = pubKey.Cookie
 	var key = new(big.Int)
 	sessionKeyMsg.SessionKey = key.SetBytes(sessionKey)
