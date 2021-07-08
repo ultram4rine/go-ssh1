@@ -208,6 +208,7 @@ func keyExchange(conn net.Conn) (sessionID [16]byte, err error) {
 	if err != nil {
 		return
 	}
+	c = SSH_CIPHER_DES
 	var (
 		key = new(big.Int)
 		msg = sessionKeyCmsg{
@@ -227,6 +228,35 @@ func keyExchange(conn net.Conn) (sessionID [16]byte, err error) {
 	err = writer.writePacket(w, rand.Reader, packetType, packet)
 	if err != nil {
 		return
+	}
+
+	switch c {
+	case SSH_CIPHER_IDEA:
+		{
+			reader.packetCipher, err = newIDEACFBCipher(sessionKey[:16], []byte{0, 0, 0, 0, 0, 0, 0, 0})
+			if err != nil {
+				return
+			}
+		}
+	case SSH_CIPHER_DES:
+		{
+			reader.packetCipher, err = newDESCBCCipher(sessionKey[:8], []byte{0, 0, 0, 0, 0, 0, 0, 0})
+			if err != nil {
+				return
+			}
+		}
+	case SSH_CIPHER_3DES:
+		{
+			reader.packetCipher, err = newTripleDESCBCCipher(sessionKey[:24], []byte{0, 0, 0, 0, 0, 0, 0, 0})
+			if err != nil {
+				return
+			}
+		}
+	default:
+		{
+			err = fmt.Errorf("unsupported cipher (%d)", c)
+			return
+		}
 	}
 
 	pt, _, err = reader.readPacket(r)
