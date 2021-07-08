@@ -316,28 +316,24 @@ func Unmarshal(packetType byte, data []byte, out interface{}) error {
 		t := field.Type()
 		switch t.Kind() {
 		case reflect.Uint8:
-			fmt.Println("uint8")
 			if len(data) < 1 {
 				return errShortRead
 			}
 			field.SetUint(uint64(data[0]))
 			data = data[1:]
 		case reflect.Uint32:
-			fmt.Println("uint32")
 			var u32 uint32
 			if u32, data, ok = parseUint32(data); !ok {
 				return errShortRead
 			}
 			field.SetUint(uint64(u32))
 		case reflect.String:
-			fmt.Println("string")
 			var s []byte
 			if s, data, ok = parseString(data); !ok {
 				return fieldError(structType, i, "")
 			}
 			field.SetString(string(s))
 		case reflect.Ptr:
-			fmt.Println("ptr")
 			if t == bigIntType {
 				var n *big.Int
 				if n, data, ok = parseInt(data); !ok {
@@ -348,7 +344,6 @@ func Unmarshal(packetType byte, data []byte, out interface{}) error {
 				return fieldError(structType, i, "pointer to unsupported type")
 			}
 		case reflect.Array:
-			fmt.Println("array")
 			if t.Elem().Kind() != reflect.Uint8 {
 				return fieldError(structType, i, "array of unsupported type")
 			}
@@ -360,7 +355,6 @@ func Unmarshal(packetType byte, data []byte, out interface{}) error {
 			}
 			data = data[t.Len():]
 		case reflect.Slice:
-			fmt.Println("slice")
 			if t.Elem().Kind() != reflect.Uint8 {
 				return fieldError(structType, i, "slice of unsupported type")
 			}
@@ -377,7 +371,6 @@ func Unmarshal(packetType byte, data []byte, out interface{}) error {
 		default:
 			return fieldError(structType, i, fmt.Sprintf("unsupported type: %v", t))
 		}
-		fmt.Println("value: ", field)
 	}
 
 	if len(data) != 0 {
@@ -398,13 +391,11 @@ func parseString(in []byte) (out, rest []byte, ok bool) {
 	if len(in) < 4 {
 		return
 	}
-	fmt.Println("ok")
 	length := binary.BigEndian.Uint32(in)
 	in = in[4:]
 	if uint32(len(in)) < length {
 		return
 	}
-	fmt.Println("ok")
 	out = in[:length]
 	rest = in[length:]
 	ok = true
