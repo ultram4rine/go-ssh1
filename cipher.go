@@ -6,6 +6,7 @@ import (
 	"crypto/rc4"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/dgryski/go-idea"
@@ -81,7 +82,7 @@ const (
 
 // checkLength checks length of package read.
 func checkLength(length uint32) error {
-	if length <= minLength {
+	if length < minLength {
 		return errors.New("ssh1: invalid packet length, packet too small")
 	}
 	if length > maxLength {
@@ -124,6 +125,7 @@ func (c *streamPacketCipher) readCipherPacket(seqNum uint32, r io.Reader) (byte,
 	}
 
 	length := binary.BigEndian.Uint32(c.length[:])
+	fmt.Println(length)
 	if err := checkLength(length); err != nil {
 		return packetTypeForError, nil, err
 	}
@@ -137,6 +139,7 @@ func (c *streamPacketCipher) readCipherPacket(seqNum uint32, r io.Reader) (byte,
 	if _, err := io.ReadFull(r, c.padding); err != nil {
 		return packetTypeForError, nil, err
 	}
+	fmt.Println(c.padding)
 
 	data := make([]byte, length-5+paddingLength)
 	data = append(data, c.padding...)
@@ -381,6 +384,7 @@ func (c *cbcCipher) readCipherPacket(seqNum uint32, r io.Reader) (byte, []byte, 
 	}
 
 	paddingLength := 8 - (length % 8)
+	fmt.Println(paddingLength)
 	if uint32(cap(c.padding)) < paddingLength {
 		c.padding = make([]byte, paddingLength)
 	} else {
@@ -390,15 +394,16 @@ func (c *cbcCipher) readCipherPacket(seqNum uint32, r io.Reader) (byte, []byte, 
 		return packetTypeForError, nil, err
 	}
 
-	data := make([]byte, length-5+paddingLength)
-	data = append(data, c.padding...)
+	// rest is all except 'length'.
+	rest := make([]byte, 0, length+paddingLength)
+	rest = append(rest, c.padding...)
 
 	packetTypeBytes := make([]byte, 1)
 	if _, err := io.ReadFull(r, packetTypeBytes); err != nil {
 		return packetTypeForError, nil, err
 	}
 	c.packetType = packetTypeBytes[0]
-	data = append(data, c.packetType)
+	rest = append(rest, c.packetType)
 
 	if uint32(cap(c.data)) < length-5 {
 		c.data = make([]byte, length-5)
@@ -408,16 +413,17 @@ func (c *cbcCipher) readCipherPacket(seqNum uint32, r io.Reader) (byte, []byte, 
 	if _, err := io.ReadFull(r, c.data); err != nil {
 		return packetTypeForError, nil, err
 	}
-	data = append(data, c.data...)
-
-	c.decrypter.CryptBlocks(data, data)
+	rest = append(rest, c.data...)
 
 	if _, err := io.ReadFull(r, c.check[:]); err != nil {
 		return packetTypeForError, nil, err
 	}
+	rest = append(rest, c.check[:]...)
 
-	checksum := ssh1CRC32(data, len(data))
-	if checksum != binary.BigEndian.Uint32(c.check[:]) {
+	c.decrypter.CryptBlocks(rest, rest)
+
+	checksum := ssh1CRC32(rest, len(rest)-4)
+	if checksum != binary.BigEndian.Uint32(rest[len(rest)-4:]) {
 		return packetTypeForError, nil, errors.New("ssh1: CRC32 checksum failed")
 	}
 
