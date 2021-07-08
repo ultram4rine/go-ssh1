@@ -208,13 +208,12 @@ func keyExchange(conn net.Conn) (sessionID [16]byte, err error) {
 	if err != nil {
 		return
 	}
-	c = SSH_CIPHER_DES
 	var (
 		key = new(big.Int)
 		msg = sessionKeyCmsg{
 			Cipher:        byte(c),
 			Cookie:        pubKey.Cookie,
-			SessionKey:    key.SetBytes(sessionKey),
+			SessionKey:    key.SetBytes(sessionKey[:]),
 			ProtocolFlags: 0,
 		}
 	)

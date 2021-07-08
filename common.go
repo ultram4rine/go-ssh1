@@ -36,7 +36,7 @@ func ssh1CRC32(data []byte, len int) uint32 {
 }
 
 // createSessionKey.
-func createSessionKey(sessionID [16]byte, serverKey *rsa.PublicKey, hostKey *rsa.PublicKey) ([]byte, error) {
+func createSessionKey(sessionID [16]byte, serverKey *rsa.PublicKey, hostKey *rsa.PublicKey) ([32]byte, error) {
 	var (
 		smaller *rsa.PublicKey
 		larger  *rsa.PublicKey
@@ -50,20 +50,23 @@ func createSessionKey(sessionID [16]byte, serverKey *rsa.PublicKey, hostKey *rsa
 		larger = serverKey
 	}
 
-	sessionKey := make([]byte, 32)
-	rand.Read(sessionKey)
+	sessionKeyBytes := make([]byte, 32)
+	rand.Read(sessionKeyBytes)
 	for i := 0; i < 16; i++ {
-		sessionKey[i] ^= sessionID[i]
+		sessionKeyBytes[i] ^= sessionID[i]
 	}
 
-	sessionKey, err := rsa.EncryptPKCS1v15(rand.Reader, smaller, sessionKey)
+	sessionKeyBytes, err := rsa.EncryptPKCS1v15(rand.Reader, smaller, sessionKeyBytes)
 	if err != nil {
-		return nil, err
+		return [32]byte{}, err
 	}
-	sessionKey, err = rsa.EncryptPKCS1v15(rand.Reader, larger, sessionKey)
+	sessionKeyBytes, err = rsa.EncryptPKCS1v15(rand.Reader, larger, sessionKeyBytes)
 	if err != nil {
-		return nil, err
+		return [32]byte{}, err
 	}
+
+	var sessionKey [32]byte
+	copy(sessionKey[:], sessionKeyBytes)
 
 	return sessionKey, nil
 }
