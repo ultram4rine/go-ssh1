@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/md5"
-	"crypto/rand"
 	"crypto/rsa"
 	"errors"
 	"fmt"
@@ -126,7 +125,8 @@ func Dial(addr string, config *Config) (*packetCipher, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = NewClientConn(conn, addr, config)
+	c, err := NewClientConn(conn, addr, config)
+	c.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +224,8 @@ func keyExchange(conn net.Conn) (sessionID [16]byte, err error) {
 		return
 	}
 	w := bufio.NewWriter(conn)
-	err = writer.writePacket(w, rand.Reader, packetType, packet)
+	// Pass empty buffer for padding because it zeroes if not encrypting.
+	err = writer.writePacket(w, &bytes.Buffer{}, packetType, packet)
 	if err != nil {
 		return
 	}
