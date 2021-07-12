@@ -251,7 +251,8 @@ func (c *cfbCipher) readCipherPacket(seqNum uint32, r io.Reader) (byte, []byte, 
 		return packetTypeForError, nil, err
 	}
 
-	rest := make([]byte, length-5+paddingLength)
+	// rest is all except 'length'.
+	rest := make([]byte, 0, length+paddingLength)
 	rest = append(rest, c.padding...)
 
 	packetTypeBytes := make([]byte, 1)
@@ -271,17 +272,18 @@ func (c *cfbCipher) readCipherPacket(seqNum uint32, r io.Reader) (byte, []byte, 
 	}
 	rest = append(rest, c.data...)
 
+	if _, err := io.ReadFull(r, c.check[:]); err != nil {
+		return packetTypeForError, nil, err
+	}
+	rest = append(rest, c.check[:]...)
+
 	c.decrypter.XORKeyStream(rest, rest)
 
 	c.packetType = rest[paddingLength : paddingLength+1][0]
 	c.data = rest[paddingLength+1 : len(rest)-4]
 
-	if _, err := io.ReadFull(r, c.check[:]); err != nil {
-		return packetTypeForError, nil, err
-	}
-
-	checksum := ssh1CRC32(rest, len(rest))
-	if checksum != binary.BigEndian.Uint32(c.check[:]) {
+	checksum := ssh1CRC32(rest, len(rest)-4)
+	if checksum != binary.BigEndian.Uint32(rest[len(rest)-4:]) {
 		return packetTypeForError, nil, errors.New("ssh1: CRC32 checksum failed")
 	}
 
