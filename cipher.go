@@ -6,7 +6,6 @@ import (
 	"crypto/rc4"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 
 	"github.com/dgryski/go-idea"
@@ -125,7 +124,6 @@ func (c *streamPacketCipher) readCipherPacket(seqNum uint32, r io.Reader) (byte,
 	}
 
 	length := binary.BigEndian.Uint32(c.length[:])
-	fmt.Println(length)
 	if err := checkLength(length); err != nil {
 		return packetTypeForError, nil, err
 	}
@@ -139,7 +137,6 @@ func (c *streamPacketCipher) readCipherPacket(seqNum uint32, r io.Reader) (byte,
 	if _, err := io.ReadFull(r, c.padding); err != nil {
 		return packetTypeForError, nil, err
 	}
-	fmt.Println(c.padding)
 
 	data := make([]byte, length-5+paddingLength)
 	data = append(data, c.padding...)
@@ -254,15 +251,15 @@ func (c *cfbCipher) readCipherPacket(seqNum uint32, r io.Reader) (byte, []byte, 
 		return packetTypeForError, nil, err
 	}
 
-	data := make([]byte, length-5+paddingLength)
-	data = append(data, c.padding...)
+	rest := make([]byte, length-5+paddingLength)
+	rest = append(rest, c.padding...)
 
 	packetTypeBytes := make([]byte, 1)
 	if _, err := io.ReadFull(r, packetTypeBytes); err != nil {
 		return packetTypeForError, nil, err
 	}
 	c.packetType = packetTypeBytes[0]
-	data = append(data, c.packetType)
+	rest = append(rest, c.packetType)
 
 	if uint32(cap(c.data)) < length-5 {
 		c.data = make([]byte, length-5)
@@ -272,15 +269,18 @@ func (c *cfbCipher) readCipherPacket(seqNum uint32, r io.Reader) (byte, []byte, 
 	if _, err := io.ReadFull(r, c.data); err != nil {
 		return packetTypeForError, nil, err
 	}
-	data = append(data, c.data...)
+	rest = append(rest, c.data...)
 
-	c.decrypter.XORKeyStream(data, data)
+	c.decrypter.XORKeyStream(rest, rest)
+
+	c.packetType = rest[paddingLength : paddingLength+1][0]
+	c.data = rest[paddingLength+1 : len(rest)-4]
 
 	if _, err := io.ReadFull(r, c.check[:]); err != nil {
 		return packetTypeForError, nil, err
 	}
 
-	checksum := ssh1CRC32(data, len(data))
+	checksum := ssh1CRC32(rest, len(rest))
 	if checksum != binary.BigEndian.Uint32(c.check[:]) {
 		return packetTypeForError, nil, errors.New("ssh1: CRC32 checksum failed")
 	}
@@ -299,27 +299,32 @@ func (c *cfbCipher) writeCipherPacket(seqNum uint32, w io.Writer, rand io.Reader
 	binary.BigEndian.PutUint32(c.length[:], uint32(length))
 
 	paddingLength := 8 - (length % 8)
+	if cap(c.padding) < paddingLength {
+		c.padding = make([]byte, paddingLength)
+	} else {
+		c.padding = c.padding[:paddingLength]
+	}
 	padding := c.padding[:paddingLength]
 	if _, err := io.ReadFull(rand, padding); err != nil {
 		return err
 	}
 
-	data := padding
-	data = append(data, packetType)
-	data = append(data, packet[:]...)
+	rest := padding
+	rest = append(rest, packetType)
+	rest = append(rest, packet[:]...)
 
-	checksum := ssh1CRC32(data, len(data))
+	checksum := ssh1CRC32(rest, len(rest))
 	var checkBytes = make([]byte, 4)
 	binary.BigEndian.PutUint32(checkBytes[:], checksum)
 
-	data = append(data, checkBytes[:]...)
+	rest = append(rest, checkBytes[:]...)
 
-	c.encrypter.XORKeyStream(data, data)
+	c.encrypter.XORKeyStream(rest, rest)
 
 	if _, err := w.Write(c.length[:]); err != nil {
 		return err
 	}
-	if _, err := w.Write(data); err != nil {
+	if _, err := w.Write(rest); err != nil {
 		return err
 	}
 
@@ -384,7 +389,6 @@ func (c *cbcCipher) readCipherPacket(seqNum uint32, r io.Reader) (byte, []byte, 
 	}
 
 	paddingLength := 8 - (length % 8)
-	fmt.Println(paddingLength)
 	if uint32(cap(c.padding)) < paddingLength {
 		c.padding = make([]byte, paddingLength)
 	} else {
@@ -422,6 +426,9 @@ func (c *cbcCipher) readCipherPacket(seqNum uint32, r io.Reader) (byte, []byte, 
 
 	c.decrypter.CryptBlocks(rest, rest)
 
+	c.packetType = rest[paddingLength : paddingLength+1][0]
+	c.data = rest[paddingLength+1 : len(rest)-4]
+
 	checksum := ssh1CRC32(rest, len(rest)-4)
 	if checksum != binary.BigEndian.Uint32(rest[len(rest)-4:]) {
 		return packetTypeForError, nil, errors.New("ssh1: CRC32 checksum failed")
@@ -441,27 +448,33 @@ func (c *cbcCipher) writeCipherPacket(seqNum uint32, w io.Writer, rand io.Reader
 	binary.BigEndian.PutUint32(c.length[:], uint32(length))
 
 	paddingLength := 8 - (length % 8)
+	if cap(c.padding) < paddingLength {
+		c.padding = make([]byte, paddingLength)
+	} else {
+		c.padding = c.padding[:paddingLength]
+	}
 	padding := c.padding[:paddingLength]
 	if _, err := io.ReadFull(rand, padding); err != nil {
 		return err
 	}
 
-	data := padding
-	data = append(data, packetType)
-	data = append(data, packet[:]...)
+	// rest is all except 'length'.
+	rest := padding
+	rest = append(rest, packetType)
+	rest = append(rest, packet[:]...)
 
-	checksum := ssh1CRC32(data, len(data))
+	checksum := ssh1CRC32(rest, len(rest))
 	var checkBytes = make([]byte, 4)
 	binary.BigEndian.PutUint32(checkBytes[:], checksum)
 
-	data = append(data, checkBytes[:]...)
+	rest = append(rest, checkBytes[:]...)
 
-	c.encrypter.CryptBlocks(data, data)
+	c.encrypter.CryptBlocks(rest, rest)
 
 	if _, err := w.Write(c.length[:]); err != nil {
 		return err
 	}
-	if _, err := w.Write(data); err != nil {
+	if _, err := w.Write(rest); err != nil {
 		return err
 	}
 
