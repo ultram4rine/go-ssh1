@@ -251,6 +251,14 @@ func keyExchange(conn net.Conn) (sessionID [16]byte, err error) {
 				return
 			}
 		}
+	case SSH_CIPHER_RC4:
+		{
+			// TODO: first 16 bytes server to client, remaining 16 bytes is client to server.
+			reader.packetCipher, err = newRC4(sessionKey[16:], []byte{0, 0, 0, 0, 0, 0, 0, 0})
+			if err != nil {
+				return
+			}
+		}
 	default:
 		{
 			err = fmt.Errorf("unsupported cipher (%d)", c)
