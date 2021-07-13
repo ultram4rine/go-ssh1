@@ -411,7 +411,7 @@ func parseInt(in []byte) (out *big.Int, rest []byte, ok bool) {
 	in = in[2:]
 
 	out = new(big.Int)
-	out.SetBytes(in[:((bits+7)/8)+1])
+	out.SetBytes(in[:((bits + 7) / 8)])
 
 	rest = in[(bits+7)/8:]
 	ok = true
@@ -542,12 +542,11 @@ func writeString(w io.Writer, s []byte) {
 func marshalInt(to []byte, n *big.Int) []byte {
 	lengthBytes := to
 	to = to[2:]
-	length := 0
 
 	bytes := n.Bytes()
 	nBytes := copy(to, bytes)
 	to = to[nBytes:]
-	length += nBytes * 8
+	length := nBytes * 8
 
 	lengthBytes[0] = byte(length >> 8)
 	lengthBytes[1] = byte(length)
