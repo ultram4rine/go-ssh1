@@ -85,7 +85,6 @@ func NewClientConn(c net.Conn, addr string, config *Config) (*sshConn, error) {
 	conn := &sshConn{conn: c, user: conf.User}
 
 	if err := conn.handshake(addr, &conf); err != nil {
-		c.Close()
 		return nil, fmt.Errorf("ssh1: handshake failed: %v", err)
 	}
 	return conn, nil
@@ -112,7 +111,7 @@ func (c *sshConn) handshake(dialAddress string, config *Config) error {
 		return err
 	}
 
-	return err
+	return nil
 }
 
 // Dial starts a client connection to the given SSH server. It is a
@@ -125,8 +124,7 @@ func Dial(addr string, config *Config) (*packetCipher, error) {
 	if err != nil {
 		return nil, err
 	}
-	c, err := NewClientConn(conn, addr, config)
-	c.Close()
+	_, err = NewClientConn(conn, addr, config)
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +223,7 @@ func keyExchange(conn net.Conn) (sessionID [16]byte, err error) {
 	}
 	w := bufio.NewWriter(conn)
 	// Pass empty buffer for padding because it zeroes if not encrypting.
-	err = writer.writePacket(w, &bytes.Buffer{}, packetType, packet)
+	err = writer.writePacket(w, bytes.NewBuffer(make([]byte, 8)), packetType, packet)
 	if err != nil {
 		return
 	}
@@ -233,21 +231,21 @@ func keyExchange(conn net.Conn) (sessionID [16]byte, err error) {
 	switch c {
 	case SSH_CIPHER_IDEA:
 		{
-			reader.packetCipher, err = newIDEACFBCipher(sessionKey[:16], []byte{0, 0, 0, 0, 0, 0, 0, 0})
+			reader.packetCipher, err = newIDEACFBCipher(sessionKey[:16], make([]byte, 8))
 			if err != nil {
 				return
 			}
 		}
 	case SSH_CIPHER_DES:
 		{
-			reader.packetCipher, err = newDESCBCCipher(sessionKey[:8], []byte{0, 0, 0, 0, 0, 0, 0, 0})
+			reader.packetCipher, err = newDESCBCCipher(sessionKey[:8], make([]byte, 8))
 			if err != nil {
 				return
 			}
 		}
 	case SSH_CIPHER_3DES:
 		{
-			reader.packetCipher, err = newTripleDESCBCCipher(sessionKey[:24], []byte{0, 0, 0, 0, 0, 0, 0, 0})
+			reader.packetCipher, err = newTripleDESCBCCipher(sessionKey[:24], make([]byte, 8))
 			if err != nil {
 				return
 			}
@@ -255,7 +253,7 @@ func keyExchange(conn net.Conn) (sessionID [16]byte, err error) {
 	case SSH_CIPHER_RC4:
 		{
 			// TODO: first 16 bytes server to client, remaining 16 bytes is client to server.
-			reader.packetCipher, err = newRC4(sessionKey[16:], []byte{0, 0, 0, 0, 0, 0, 0, 0})
+			reader.packetCipher, err = newRC4(sessionKey[16:], nil)
 			if err != nil {
 				return
 			}
