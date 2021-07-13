@@ -167,7 +167,7 @@ func keyExchange(conn net.Conn) (sessionID [16]byte, err error) {
 		return
 	}
 	if pt != smsgPublicKey {
-		err = fmt.Errorf("first message should be SSH_SMSG_PUBLIC_KEY (2), got %d", pt)
+		err = fmt.Errorf("first message should be SSH_SMSG_PUBLIC_KEY (%d), got %d", smsgPublicKey, pt)
 		return
 	}
 
@@ -217,8 +217,8 @@ func keyExchange(conn net.Conn) (sessionID [16]byte, err error) {
 	)
 
 	packetType, packet := Marshal(msg)
-	if packetType != 3 {
-		err = fmt.Errorf("SSH_CMSG_SESSION_KEY (3) should be sended, found %d", packetType)
+	if packetType != cmsgSessionKey {
+		err = fmt.Errorf("SSH_CMSG_SESSION_KEY (%d) should be sended, found %d", cmsgSessionKey, packetType)
 		return
 	}
 	w := bufio.NewWriter(conn)
@@ -270,7 +270,7 @@ func keyExchange(conn net.Conn) (sessionID [16]byte, err error) {
 		return
 	}
 	if pt != smsgSuccess {
-		err = fmt.Errorf("SSH_SMSG_SUCCESS (14) expected, got %d", pt)
+		err = fmt.Errorf("SSH_SMSG_SUCCESS (%d) expected, got %d", smsgSuccess, pt)
 		return
 	}
 
