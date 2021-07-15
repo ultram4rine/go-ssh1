@@ -8,6 +8,8 @@ import (
 )
 
 func main() {
-	_, err := ssh1.Dial("192.168.111.55:22", &ssh1.Config{Timeout: 30 * time.Second, HostKeyCallback: ssh1.InsecureIgnoreHostKey()})
-	fmt.Println(err)
+	_, err := ssh1.Dial("localhost:2222", &ssh1.Config{Timeout: 30 * time.Second, HostKeyCallback: ssh1.InsecureIgnoreHostKey()})
+	if err != nil {
+		fmt.Println(err)
+	}
 }
