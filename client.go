@@ -197,7 +197,7 @@ func keyExchange(conn net.Conn) (sessionID [16]byte, err error) {
 			E: int(pubKey.HostKeyPubExponent.Int64()),
 		}
 	)
-	sessionKey, err := createSessionKey(sessionID, serverKey, hostKey)
+	sessionKey, sessionKeyEncrypted, err := createSessionKey(sessionID, serverKey, hostKey)
 	if err != nil {
 		return
 	}
@@ -211,7 +211,7 @@ func keyExchange(conn net.Conn) (sessionID [16]byte, err error) {
 		msg = sessionKeyCmsg{
 			Cipher:        byte(c),
 			Cookie:        pubKey.Cookie,
-			SessionKey:    key.SetBytes(sessionKey[:]),
+			SessionKey:    key.SetBytes(sessionKeyEncrypted),
 			ProtocolFlags: 0,
 		}
 	)

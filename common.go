@@ -36,7 +36,7 @@ func ssh1CRC32(data []byte, len int) uint32 {
 }
 
 // createSessionKey.
-func createSessionKey(sessionID [16]byte, serverKey *rsa.PublicKey, hostKey *rsa.PublicKey) ([32]byte, error) {
+func createSessionKey(sessionID [16]byte, serverKey *rsa.PublicKey, hostKey *rsa.PublicKey) ([32]byte, []byte, error) {
 	var (
 		smaller *rsa.PublicKey
 		larger  *rsa.PublicKey
@@ -52,23 +52,27 @@ func createSessionKey(sessionID [16]byte, serverKey *rsa.PublicKey, hostKey *rsa
 
 	sessionKeyBytes := make([]byte, 32)
 	rand.Read(sessionKeyBytes)
+
+	sessionKeyBytesEncrypted := make([]byte, 32)
+	copy(sessionKeyBytesEncrypted, sessionKeyBytes)
 	for i := 0; i < 16; i++ {
-		sessionKeyBytes[i] ^= sessionID[i]
+		sessionKeyBytesEncrypted[i] ^= sessionID[i]
 	}
 
-	sessionKeyBytes, err := rsa.EncryptPKCS1v15(rand.Reader, smaller, sessionKeyBytes)
+	var err error
+	sessionKeyBytesEncrypted, err = rsa.EncryptPKCS1v15(rand.Reader, smaller, sessionKeyBytesEncrypted)
 	if err != nil {
-		return [32]byte{}, err
+		return [32]byte{}, []byte{}, err
 	}
-	sessionKeyBytes, err = rsa.EncryptPKCS1v15(rand.Reader, larger, sessionKeyBytes)
+	sessionKeyBytesEncrypted, err = rsa.EncryptPKCS1v15(rand.Reader, larger, sessionKeyBytesEncrypted)
 	if err != nil {
-		return [32]byte{}, err
+		return [32]byte{}, []byte{}, err
 	}
 
 	var sessionKey [32]byte
 	copy(sessionKey[:], sessionKeyBytes)
 
-	return sessionKey, nil
+	return sessionKey, sessionKeyBytesEncrypted, nil
 }
 
 // HostKeyCallback is the function type used for verifying server
