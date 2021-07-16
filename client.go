@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/md5"
+	"crypto/rand"
 	"crypto/rsa"
 	"errors"
 	"fmt"
@@ -188,6 +189,13 @@ func keyExchange(conn net.Conn) (sessionID [16]byte, err error) {
 	)
 
 	var (
+		sessionKey      [32]byte
+		sessionKeyBytes = make([]byte, 32)
+	)
+	rand.Read(sessionKeyBytes)
+	copy(sessionKey[:], sessionKeyBytes)
+
+	var (
 		serverKey = &rsa.PublicKey{
 			N: pubKey.ServerKeyPubModulus,
 			E: int(pubKey.ServerKeyPubExponent.Int64()),
@@ -197,7 +205,7 @@ func keyExchange(conn net.Conn) (sessionID [16]byte, err error) {
 			E: int(pubKey.HostKeyPubExponent.Int64()),
 		}
 	)
-	sessionKey, sessionKeyEncrypted, err := createSessionKey(sessionID, serverKey, hostKey)
+	encryptedSessionKey, err := encryptSessionKey(sessionKey, sessionID, serverKey, hostKey)
 	if err != nil {
 		return
 	}
@@ -211,7 +219,7 @@ func keyExchange(conn net.Conn) (sessionID [16]byte, err error) {
 		msg = sessionKeyCmsg{
 			Cipher:        byte(c),
 			Cookie:        pubKey.Cookie,
-			SessionKey:    key.SetBytes(sessionKeyEncrypted),
+			SessionKey:    key.SetBytes(encryptedSessionKey),
 			ProtocolFlags: 0,
 		}
 	)
