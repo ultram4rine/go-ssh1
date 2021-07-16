@@ -2,7 +2,6 @@ package ssh1
 
 import (
 	"bufio"
-	"errors"
 	"io"
 	"log"
 )
@@ -97,24 +96,22 @@ func (t *transport) readPacket() (pt byte, p []byte, err error) {
 func (s *connectionState) readPacket(r *bufio.Reader) (byte, []byte, error) {
 	packetType, packet, err := s.packetCipher.readCipherPacket(s.seqNum, r)
 	s.seqNum++
-	if err == nil && len(packet) == 0 {
-		err = errors.New("ssh: zero length packet")
+	if err != nil {
+		return packetTypeForError, nil, err
 	}
 
-	if len(packet) > 0 {
-		switch packetType {
-		case msgDisconnect:
-			// Transform a disconnect message into an
-			// error. Since this is lowest level at which
-			// we interpret message types, doing it here
-			// ensures that we don't have to handle it
-			// elsewhere.
-			var msg disconnectMsg
-			if err := Unmarshal(packetType, packet, &msg); err != nil {
-				return packetTypeForError, nil, err
-			}
-			return packetTypeForError, nil, &msg
+	switch packetType {
+	case msgDisconnect:
+		// Transform a disconnect message into an
+		// error. Since this is lowest level at which
+		// we interpret message types, doing it here
+		// ensures that we don't have to handle it
+		// elsewhere.
+		var msg disconnectMsg
+		if err := Unmarshal(packetType, packet, &msg); err != nil {
+			return packetTypeForError, nil, err
 		}
+		return packetTypeForError, nil, &msg
 	}
 
 	// The packet may point to an internal buffer, so copy the
@@ -122,7 +119,7 @@ func (s *connectionState) readPacket(r *bufio.Reader) (byte, []byte, error) {
 	fresh := make([]byte, len(packet))
 	copy(fresh, packet)
 
-	return packetType, fresh, err
+	return packetType, fresh, nil
 }
 
 func (t *transport) writePacket(packetType byte, packet []byte) error {
