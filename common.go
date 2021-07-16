@@ -95,6 +95,9 @@ type Config struct {
 	// User contains the username to authenticate as.
 	User string
 
+	// User contains the password to authenticate.
+	Password string
+
 	// Auth contains possible authentication methods to use with the
 	// server. Only the first instance of a particular RFC 4252 method will
 	// be used during authentication.

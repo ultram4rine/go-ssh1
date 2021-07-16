@@ -107,7 +107,12 @@ func (c *sshConn) handshake(dialAddress string, config *Config) error {
 	}
 	fmt.Println(string(c.serverVersion))
 
-	c.sessionID, err = keyExchange(c.conn)
+	r, w, err := keyExchange(c.conn)
+	if err != nil {
+		return err
+	}
+
+	err = clientAuth(r, w, c.conn, config)
 	if err != nil {
 		return err
 	}
@@ -152,15 +157,13 @@ func BannerDisplayStderr() BannerCallback {
 }
 
 // keyExchange.
-func keyExchange(conn net.Conn) (sessionID [16]byte, err error) {
-	var (
-		reader = connectionState{
-			packetCipher: &streamPacketCipher{cipher: noneCipher{}},
-		}
-		writer = connectionState{
-			packetCipher: &streamPacketCipher{cipher: noneCipher{}},
-		}
-	)
+func keyExchange(conn net.Conn) (reader, writer connectionState, err error) {
+	reader = connectionState{
+		packetCipher: &streamPacketCipher{cipher: noneCipher{}},
+	}
+	writer = connectionState{
+		packetCipher: &streamPacketCipher{cipher: noneCipher{}},
+	}
 
 	r := bufio.NewReader(conn)
 	pt, p, err := reader.readPacket(r)
@@ -178,7 +181,7 @@ func keyExchange(conn net.Conn) (sessionID [16]byte, err error) {
 		return
 	}
 
-	sessionID = md5.Sum(
+	sessionID := md5.Sum(
 		bytes.Join(
 			[][]byte{
 				pubKey.HostKeyPubModulus.Bytes(),
@@ -243,10 +246,18 @@ func keyExchange(conn net.Conn) (sessionID [16]byte, err error) {
 			if err != nil {
 				return
 			}
+			writer.packetCipher, err = newIDEACFBCipher(sessionKey[:16], make([]byte, 8))
+			if err != nil {
+				return
+			}
 		}
 	case SSH_CIPHER_DES:
 		{
 			reader.packetCipher, err = newDESCBCCipher(sessionKey[:8], make([]byte, 8))
+			if err != nil {
+				return
+			}
+			writer.packetCipher, err = newDESCBCCipher(sessionKey[:8], make([]byte, 8))
 			if err != nil {
 				return
 			}
@@ -257,11 +268,19 @@ func keyExchange(conn net.Conn) (sessionID [16]byte, err error) {
 			if err != nil {
 				return
 			}
+			writer.packetCipher, err = newTripleDESCBCCipher(sessionKey[:24], make([]byte, 8))
+			if err != nil {
+				return
+			}
 		}
 	case SSH_CIPHER_RC4:
 		{
 			// TODO: first 16 bytes server to client, remaining 16 bytes is client to server.
 			reader.packetCipher, err = newRC4(sessionKey[16:], nil)
+			if err != nil {
+				return
+			}
+			writer.packetCipher, err = newRC4(sessionKey[:16], nil)
 			if err != nil {
 				return
 			}

@@ -1,5 +1,12 @@
 package ssh1
 
+import (
+	"bufio"
+	"crypto/rand"
+	"fmt"
+	"net"
+)
+
 const (
 	// SSH_AUTH_RHOSTS is auth using .rhosts file
 	SSH_AUTH_RHOSTS = iota + 1
@@ -43,4 +50,56 @@ func CreateAuthMask(methods ...int) *Bitmask {
 	}
 
 	return mask
+}
+
+func clientAuth(reader, writer connectionState, conn net.Conn, config *Config) error {
+	r := bufio.NewReader(conn)
+	w := bufio.NewWriter(conn)
+
+	var pUser = userCmsg{
+		UserName: config.User,
+	}
+	pt, p := Marshal(pUser)
+	if pt != cmsgUser {
+		return fmt.Errorf("SSH_CMSG_USER (%d) should be sended, found %d", cmsgUser, pt)
+	}
+
+	if err := writer.writePacket(w, rand.Reader, pt, p); err != nil {
+		return err
+	}
+
+	pt, _, err := reader.readPacket(r)
+	if err != nil {
+		return err
+	}
+	if pt == smsgSuccess {
+		return nil
+	}
+	if pt != smsgFailure {
+		fmt.Println("there")
+		return fmt.Errorf("SSH_SMSG_FAILURE (%d) expected, got %d", smsgFailure, pt)
+	}
+
+	var pPassword = authPasswordCmsg{
+		Password: config.Password,
+	}
+	pt, p2 := Marshal(pPassword)
+	if pt != cmsgAuthPassword {
+		return fmt.Errorf("SSH_CMSG_AUTH_PASSWORD (%d) should be sended, found %d", cmsgAuthPassword, pt)
+	}
+
+	if err := writer.writePacket(w, rand.Reader, pt, p2); err != nil {
+		return err
+	}
+
+	pt, _, err = reader.readPacket(r)
+	if err != nil {
+		return err
+	}
+	if pt != smsgSuccess {
+		fmt.Println("here")
+		return fmt.Errorf("SSH_SMSG_SUCCESS (%d) expected, got %d", smsgSuccess, pt)
+	}
+
+	return nil
 }
