@@ -37,6 +37,23 @@ var CipherNames = map[int]string{
 	SSH_CIPHER_BLOWFISH: "blowfish",
 }
 
+type cipherMode struct {
+	keySize int
+	ivSize  int
+	create  func(key, iv []byte) (packetCipher, error)
+}
+
+// cipherModes documents properties of supported ciphers. Ciphers not included
+// are not supported and will not be negotiated, even if explicitly requested in
+// ClientConfig.Crypto.Ciphers.
+var cipherModes = map[int]*cipherMode{
+	SSH_CIPHER_IDEA:     {16, 8, newIDEACFBCipher},
+	SSH_CIPHER_DES:      {8, 8, newDESCBCCipher},
+	SSH_CIPHER_3DES:     {24, 8, newTripleDESCBCCipher},
+	SSH_CIPHER_RC4:      {16, 0, newRC4},
+	SSH_CIPHER_BLOWFISH: {16, 8, newBlowfishCBCCipher},
+}
+
 func chooseCipher(ciphersMask Bitmask) (int, error) {
 	if ciphersMask.hasFlag(SSH_CIPHER_3DES) {
 		return SSH_CIPHER_3DES, nil

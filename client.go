@@ -217,6 +217,7 @@ func keyExchange(conn net.Conn) (reader, writer connectionState, err error) {
 	if err != nil {
 		return
 	}
+	c = SSH_CIPHER_DES
 	var (
 		key = new(big.Int)
 		msg = sessionKeyCmsg{
@@ -239,57 +240,19 @@ func keyExchange(conn net.Conn) (reader, writer connectionState, err error) {
 		return
 	}
 
-	switch c {
-	case SSH_CIPHER_IDEA:
-		{
-			reader.packetCipher, err = newIDEACFBCipher(sessionKey[:16], make([]byte, 8))
-			if err != nil {
-				return
-			}
-			writer.packetCipher, err = newIDEACFBCipher(sessionKey[:16], make([]byte, 8))
-			if err != nil {
-				return
-			}
-		}
-	case SSH_CIPHER_DES:
-		{
-			reader.packetCipher, err = newDESCBCCipher(sessionKey[:8], make([]byte, 8))
-			if err != nil {
-				return
-			}
-			writer.packetCipher, err = newDESCBCCipher(sessionKey[:8], make([]byte, 8))
-			if err != nil {
-				return
-			}
-		}
-	case SSH_CIPHER_3DES:
-		{
-			reader.packetCipher, err = newTripleDESCBCCipher(sessionKey[:24], make([]byte, 8))
-			if err != nil {
-				return
-			}
-			writer.packetCipher, err = newTripleDESCBCCipher(sessionKey[:24], make([]byte, 8))
-			if err != nil {
-				return
-			}
-		}
-	case SSH_CIPHER_RC4:
-		{
-			// TODO: first 16 bytes server to client, remaining 16 bytes is client to server.
-			reader.packetCipher, err = newRC4(sessionKey[16:], nil)
-			if err != nil {
-				return
-			}
-			writer.packetCipher, err = newRC4(sessionKey[:16], nil)
-			if err != nil {
-				return
-			}
-		}
-	default:
-		{
-			err = fmt.Errorf("unsupported cipher (%d)", c)
-			return
-		}
+	// TODO: rc4: different keys for each direction.
+	cm, ok := cipherModes[c]
+	if !ok {
+		err = fmt.Errorf("unsupported cipher (%d)", c)
+		return
+	}
+	reader.packetCipher, err = cm.create(sessionKey[:cm.keySize], make([]byte, cm.ivSize))
+	if err != nil {
+		return
+	}
+	writer.packetCipher, err = cm.create(sessionKey[:cm.keySize], make([]byte, cm.ivSize))
+	if err != nil {
+		return
 	}
 
 	pt, _, err = reader.readPacket(r)
