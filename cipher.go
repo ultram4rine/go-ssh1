@@ -505,6 +505,7 @@ func newDESCBCCipher(key, iv []byte) (packetCipher, error) {
 	return cbc, nil
 }
 
+// FIXME: 3DES not working.
 func newTripleDESCBCCipher(key, iv []byte) (packetCipher, error) {
 	c, err := des.NewTripleDESCipher(key)
 	if err != nil {
