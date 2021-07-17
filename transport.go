@@ -43,12 +43,12 @@ type transport struct {
 type packetCipher interface {
 	// writeCipherPacket encrypts the packet and writes it to w. The
 	// contents of the packet are generally scrambled.
-	writeCipherPacket(seqnum uint32, w io.Writer, rand io.Reader, packetType byte, packet []byte) error
+	writeCipherPacket(w io.Writer, rand io.Reader, packetType byte, packet []byte) error
 
 	// readCipherPacket reads and decrypts a packet of data. The
 	// returned packet may be overwritten by future calls of
 	// readPacket.
-	readCipherPacket(seqnum uint32, r io.Reader) (byte, []byte, error)
+	readCipherPacket(r io.Reader) (byte, []byte, error)
 }
 
 // connectionState represents one side (read or write) of the
@@ -56,8 +56,7 @@ type packetCipher interface {
 // keys, and can even have its own algorithms
 type connectionState struct {
 	packetCipher
-	seqNum uint32
-	dir    direction
+	dir direction
 }
 
 func (t *transport) printPacket(pt byte, write bool) {
@@ -94,8 +93,7 @@ func (t *transport) readPacket() (pt byte, p []byte, err error) {
 }
 
 func (s *connectionState) readPacket(r *bufio.Reader) (byte, []byte, error) {
-	packetType, packet, err := s.packetCipher.readCipherPacket(s.seqNum, r)
-	s.seqNum++
+	packetType, packet, err := s.packetCipher.readCipherPacket(r)
 	if err != nil {
 		return packetTypeForError, nil, err
 	}
@@ -130,14 +128,13 @@ func (t *transport) writePacket(packetType byte, packet []byte) error {
 }
 
 func (s *connectionState) writePacket(w *bufio.Writer, rand io.Reader, packetType byte, packet []byte) error {
-	err := s.packetCipher.writeCipherPacket(s.seqNum, w, rand, packetType, packet)
+	err := s.packetCipher.writeCipherPacket(w, rand, packetType, packet)
 	if err != nil {
 		return err
 	}
 	if err = w.Flush(); err != nil {
 		return err
 	}
-	s.seqNum++
 	return err
 }
 

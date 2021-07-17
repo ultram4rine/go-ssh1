@@ -25,7 +25,7 @@ const (
 	_
 	// SSH_CIPHER_RC4 is RC4.
 	SSH_CIPHER_RC4
-	// SSH_CIPHER_BLOWFISH is Blowfish.
+	// SSH_CIPHER_BLOWFISH is Blowfish. It's not specified in RFC but used by OpenSSH.
 	SSH_CIPHER_BLOWFISH
 )
 
@@ -108,12 +108,11 @@ func newRC4(key, iv []byte) (packetCipher, error) {
 type streamPacketCipher struct {
 	cipher cipher.Stream
 
-	seqNumBytes [4]byte
-	length      [4]byte
-	padding     []byte
-	packetType  byte
-	data        []byte
-	check       [4]byte
+	length     [4]byte
+	padding    []byte
+	packetType byte
+	data       []byte
+	check      [4]byte
 }
 
 // packetTypeForError used when readCipherPacket return error.
@@ -122,7 +121,7 @@ type streamPacketCipher struct {
 var packetTypeForError = byte(msgNone)
 
 // readCipherPacket reads and decrypt a single packet from the reader argument.
-func (c *streamPacketCipher) readCipherPacket(seqNum uint32, r io.Reader) (byte, []byte, error) {
+func (c *streamPacketCipher) readCipherPacket(r io.Reader) (byte, []byte, error) {
 	if _, err := io.ReadFull(r, c.length[:]); err != nil {
 		return packetTypeForError, nil, err
 	}
@@ -182,7 +181,7 @@ func (c *streamPacketCipher) readCipherPacket(seqNum uint32, r io.Reader) (byte,
 }
 
 // writeCipherPacket encrypts and writes a single packet to the writer argument.
-func (c *streamPacketCipher) writeCipherPacket(seqNum uint32, w io.Writer, rand io.Reader, packetType byte, packet []byte) error {
+func (c *streamPacketCipher) writeCipherPacket(w io.Writer, rand io.Reader, packetType byte, packet []byte) error {
 	// Packet type + data length + checksum.
 	length := 1 + len(packet) + 4
 	if err := checkLength(uint32(length)); err != nil {
@@ -225,12 +224,11 @@ type cfbCipher struct {
 	encrypter cipher.Stream
 	decrypter cipher.Stream
 
-	seqNumBytes [4]byte
-	length      [4]byte
-	padding     []byte
-	packetType  byte
-	data        []byte
-	check       [4]byte
+	length     [4]byte
+	padding    []byte
+	packetType byte
+	data       []byte
+	check      [4]byte
 }
 
 func newCFBCipher(c cipher.Block, key, iv []byte) packetCipher {
@@ -242,7 +240,7 @@ func newCFBCipher(c cipher.Block, key, iv []byte) packetCipher {
 }
 
 // readCipherPacket reads and decrypt a single packet from the reader argument.
-func (c *cfbCipher) readCipherPacket(seqNum uint32, r io.Reader) (byte, []byte, error) {
+func (c *cfbCipher) readCipherPacket(r io.Reader) (byte, []byte, error) {
 	if _, err := io.ReadFull(r, c.length[:]); err != nil {
 		return packetTypeForError, nil, err
 	}
@@ -302,7 +300,7 @@ func (c *cfbCipher) readCipherPacket(seqNum uint32, r io.Reader) (byte, []byte, 
 }
 
 // writeCipherPacket encrypts and writes a single packet to the writer argument.
-func (c *cfbCipher) writeCipherPacket(seqNum uint32, w io.Writer, rand io.Reader, packetType byte, packet []byte) error {
+func (c *cfbCipher) writeCipherPacket(w io.Writer, rand io.Reader, packetType byte, packet []byte) error {
 	// Packet type + data length + checksum.
 	length := 1 + len(packet) + 4
 	if err := checkLength(uint32(length)); err != nil {
@@ -360,14 +358,11 @@ type cbcCipher struct {
 	encrypter cipher.BlockMode
 	decrypter cipher.BlockMode
 
-	seqNumBytes [4]byte
-	length      [4]byte
-	padding     []byte
-	packetType  byte
-	data        []byte
-	check       [4]byte
-
-	oracleCamouflage uint32
+	length     [4]byte
+	padding    []byte
+	packetType byte
+	data       []byte
+	check      [4]byte
 }
 
 func newCBCCipher(c cipher.Block, key, iv []byte) packetCipher {
@@ -378,21 +373,8 @@ func newCBCCipher(c cipher.Block, key, iv []byte) packetCipher {
 	return cbc
 }
 
-const (
-	cbcMinPacketSizeMultiple = 8
-	cbcMinPacketSize         = 16
-	cbcMinPaddingSize        = 4
-)
-
-func maxUInt32(a, b int) uint32 {
-	if a > b {
-		return uint32(a)
-	}
-	return uint32(b)
-}
-
 // readCipherPacket reads and decrypt a single packet from the reader argument.
-func (c *cbcCipher) readCipherPacket(seqNum uint32, r io.Reader) (byte, []byte, error) {
+func (c *cbcCipher) readCipherPacket(r io.Reader) (byte, []byte, error) {
 	if _, err := io.ReadFull(r, c.length[:]); err != nil {
 		return packetTypeForError, nil, err
 	}
@@ -452,7 +434,7 @@ func (c *cbcCipher) readCipherPacket(seqNum uint32, r io.Reader) (byte, []byte, 
 }
 
 // writeCipherPacket encrypts and writes a single packet to the writer argument.
-func (c *cbcCipher) writeCipherPacket(seqNum uint32, w io.Writer, rand io.Reader, packetType byte, packet []byte) error {
+func (c *cbcCipher) writeCipherPacket(w io.Writer, rand io.Reader, packetType byte, packet []byte) error {
 	// Packet type + data length + checksum.
 	length := 1 + len(packet) + 4
 	if err := checkLength(uint32(length)); err != nil {

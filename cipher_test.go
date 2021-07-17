@@ -74,11 +74,11 @@ func testPacketCipher(t *testing.T, k int, v string) {
 	want := "bla bla"
 	input := []byte(want)
 	buf := &bytes.Buffer{}
-	if err := server.writeCipherPacket(0, buf, rand.Reader, 0, input); err != nil {
+	if err := server.writeCipherPacket(buf, rand.Reader, 0, input); err != nil {
 		t.Fatalf("writeCipherPacket(%q, %q, %q, %q, %q): %v", 0, buf, rand.Reader, 0, input, err)
 	}
 
-	pt, packet, err := client.readCipherPacket(0, buf)
+	pt, packet, err := client.readCipherPacket(buf)
 	if err != nil {
 		t.Fatalf("readCipherPacket(%q, %q): %v", 0, buf, err)
 	}
