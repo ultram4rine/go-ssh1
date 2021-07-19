@@ -41,6 +41,7 @@ func encryptSessionKey(sessionKey [32]byte, sessionID [16]byte, serverKey *rsa.P
 		smaller *rsa.PublicKey
 		larger  *rsa.PublicKey
 		res     = serverKey.N.Cmp(hostKey.N)
+		err     error
 	)
 	if res == -1 {
 		smaller = serverKey
@@ -50,23 +51,22 @@ func encryptSessionKey(sessionKey [32]byte, sessionID [16]byte, serverKey *rsa.P
 		larger = serverKey
 	}
 
-	encryptedSessionKeyBytes := make([]byte, 32)
-	copy(encryptedSessionKeyBytes, sessionKey[:])
+	encryptedSessionKey := make([]byte, 32)
+	copy(encryptedSessionKey, sessionKey[:])
 	for i := 0; i < 16; i++ {
-		encryptedSessionKeyBytes[i] ^= sessionID[i]
+		encryptedSessionKey[i] ^= sessionID[i]
 	}
 
-	var err error
-	encryptedSessionKeyBytes, err = rsa.EncryptPKCS1v15(rand.Reader, smaller, encryptedSessionKeyBytes)
+	encryptedSessionKey, err = rsa.EncryptPKCS1v15(rand.Reader, smaller, encryptedSessionKey)
 	if err != nil {
 		return []byte{}, err
 	}
-	encryptedSessionKeyBytes, err = rsa.EncryptPKCS1v15(rand.Reader, larger, encryptedSessionKeyBytes)
+	encryptedSessionKey, err = rsa.EncryptPKCS1v15(rand.Reader, larger, encryptedSessionKey)
 	if err != nil {
 		return []byte{}, err
 	}
 
-	return encryptedSessionKeyBytes, nil
+	return encryptedSessionKey, nil
 }
 
 // HostKeyCallback is the function type used for verifying server
