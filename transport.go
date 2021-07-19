@@ -56,7 +56,6 @@ type packetCipher interface {
 // keys, and can even have its own algorithms
 type connectionState struct {
 	packetCipher
-	dir direction
 }
 
 func (t *transport) printPacket(pt byte, write bool) {
@@ -138,7 +137,7 @@ func (s *connectionState) writePacket(w *bufio.Writer, rand io.Reader, packetTyp
 	return err
 }
 
-func newTransport(rwc io.ReadWriteCloser, rand io.Reader, isClient bool) *transport {
+func newTransport(rwc io.ReadWriteCloser, rand io.Reader) *transport {
 	t := &transport{
 		bufReader: bufio.NewReader(rwc),
 		bufWriter: bufio.NewWriter(rwc),
@@ -151,25 +150,6 @@ func newTransport(rwc io.ReadWriteCloser, rand io.Reader, isClient bool) *transp
 		},
 		Closer: rwc,
 	}
-	t.isClient = isClient
-
-	if isClient {
-		t.reader.dir = serverKeys
-		t.writer.dir = clientKeys
-	} else {
-		t.reader.dir = clientKeys
-		t.writer.dir = serverKeys
-	}
 
 	return t
 }
-
-type direction struct {
-	ivTag  []byte
-	keyTag []byte
-}
-
-var (
-	serverKeys = direction{[]byte{'B'}, []byte{'D'}}
-	clientKeys = direction{[]byte{'A'}, []byte{'C'}}
-)

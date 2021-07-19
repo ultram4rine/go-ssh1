@@ -1,7 +1,6 @@
 package ssh1
 
 import (
-	"bufio"
 	"bytes"
 	"crypto/md5"
 	"crypto/rand"
@@ -16,18 +15,12 @@ import (
 
 // Client implements a traditional SSH client that supports shells,
 // subprocesses, TCP port/streamlocal forwarding and tunneled dialing.
-/*type Client struct {
-	Conn
-
-	handleForwardsOnce sync.Once // guards calling (*Client).handleForwards
-
-	forwards        forwardList // forwarded tcpip connections from the remote side
-	mu              sync.Mutex
-	channelHandlers map[string]chan NewChannel
+type Client struct {
+	conn *sshConn
 }
 
 // NewClient creates a Client on top of the given connection.
-func NewClient(c Conn, chans <-chan NewChannel, reqs <-chan *Request) *Client {
+/*func NewClient(c Conn, chans <-chan NewChannel, reqs <-chan *Request) *Client {
 	conn := &Client{
 		Conn:            c,
 		channelHandlers: make(map[string]chan NewChannel, 1),
@@ -105,14 +98,13 @@ func (c *sshConn) handshake(dialAddress string, config *Config) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(string(c.serverVersion))
 
-	r, w, err := keyExchange(c.conn, config)
+	t, err := keyExchange(c.conn, config)
 	if err != nil {
 		return err
 	}
 
-	err = clientAuth(r, w, c.conn, config)
+	err = clientAuth(t, c.conn, config)
 	if err != nil {
 		return err
 	}
@@ -125,16 +117,16 @@ func (c *sshConn) handshake(dialAddress string, config *Config) error {
 // initiates the SSH handshake, and then sets up a Client.  For access
 // to incoming channels and requests, use net.Dial with NewClientConn
 // instead.
-func Dial(addr string, config *Config) (*packetCipher, error) {
+func Dial(addr string, config *Config) (*Client, error) {
 	conn, err := net.DialTimeout("tcp", addr, config.Timeout)
 	if err != nil {
 		return nil, err
 	}
-	_, err = NewClientConn(conn, addr, config)
+	c, err := NewClientConn(conn, addr, config)
 	if err != nil {
 		return nil, err
 	}
-	return nil, err
+	return &Client{conn: c}, err
 }
 
 // InsecureIgnoreHostKey returns a function that can be used for
@@ -157,16 +149,11 @@ func BannerDisplayStderr() BannerCallback {
 }
 
 // keyExchange.
-func keyExchange(conn net.Conn, config *Config) (reader, writer connectionState, err error) {
-	reader = connectionState{
-		packetCipher: &streamPacketCipher{cipher: noneCipher{}},
-	}
-	writer = connectionState{
-		packetCipher: &streamPacketCipher{cipher: noneCipher{}},
-	}
+func keyExchange(conn net.Conn, config *Config) (t *transport, err error) {
+	// Pass empty buffer for padding because it zeroes if not encrypting.
+	t = newTransport(conn, bytes.NewBuffer(make([]byte, 8)))
 
-	r := bufio.NewReader(conn)
-	pt, p, err := reader.readPacket(r)
+	pt, p, err := t.readPacket()
 	if err != nil {
 		return
 	}
@@ -232,9 +219,7 @@ func keyExchange(conn net.Conn, config *Config) (reader, writer connectionState,
 		err = fmt.Errorf("SSH_CMSG_SESSION_KEY (%d) should be sended, found %d", cmsgSessionKey, packetType)
 		return
 	}
-	w := bufio.NewWriter(conn)
-	// Pass empty buffer for padding because it zeroes if not encrypting.
-	err = writer.writePacket(w, bytes.NewBuffer(make([]byte, 8)), packetType, packet)
+	err = t.writePacket(packetType, packet)
 	if err != nil {
 		return
 	}
@@ -245,16 +230,18 @@ func keyExchange(conn net.Conn, config *Config) (reader, writer connectionState,
 		err = fmt.Errorf("unsupported cipher (%d)", c)
 		return
 	}
-	reader.packetCipher, err = cm.create(sessionKey[:cm.keySize], make([]byte, cm.ivSize))
-	if err != nil {
-		return
-	}
-	writer.packetCipher, err = cm.create(sessionKey[:cm.keySize], make([]byte, cm.ivSize))
-	if err != nil {
-		return
-	}
 
-	pt, _, err = reader.readPacket(r)
+	t.reader.packetCipher, err = cm.create(sessionKey[:cm.keySize], make([]byte, cm.ivSize))
+	if err != nil {
+		return
+	}
+	t.writer.packetCipher, err = cm.create(sessionKey[:cm.keySize], make([]byte, cm.ivSize))
+	if err != nil {
+		return
+	}
+	t.rand = rand.Reader
+
+	pt, _, err = t.readPacket()
 	if err != nil {
 		return
 	}

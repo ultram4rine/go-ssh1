@@ -1,8 +1,6 @@
 package ssh1
 
 import (
-	"bufio"
-	"crypto/rand"
 	"fmt"
 	"net"
 )
@@ -52,10 +50,7 @@ func CreateAuthMask(methods ...int) *Bitmask {
 	return mask
 }
 
-func clientAuth(reader, writer connectionState, conn net.Conn, config *Config) error {
-	r := bufio.NewReader(conn)
-	w := bufio.NewWriter(conn)
-
+func clientAuth(t *transport, conn net.Conn, config *Config) error {
 	var pUser = userCmsg{
 		UserName: config.User,
 	}
@@ -64,11 +59,11 @@ func clientAuth(reader, writer connectionState, conn net.Conn, config *Config) e
 		return fmt.Errorf("SSH_CMSG_USER (%d) should be sended, found %d", cmsgUser, pt)
 	}
 
-	if err := writer.writePacket(w, rand.Reader, pt, p); err != nil {
+	if err := t.writePacket(pt, p); err != nil {
 		return err
 	}
 
-	pt, _, err := reader.readPacket(r)
+	pt, _, err := t.readPacket()
 	if err != nil {
 		return err
 	}
@@ -88,11 +83,11 @@ func clientAuth(reader, writer connectionState, conn net.Conn, config *Config) e
 		return fmt.Errorf("SSH_CMSG_AUTH_PASSWORD (%d) should be sended, found %d", cmsgAuthPassword, pt)
 	}
 
-	if err := writer.writePacket(w, rand.Reader, pt, p2); err != nil {
+	if err := t.writePacket(pt, p2); err != nil {
 		return err
 	}
 
-	pt, _, err = reader.readPacket(r)
+	pt, _, err = t.readPacket()
 	if err != nil {
 		return err
 	}
