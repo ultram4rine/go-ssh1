@@ -1,7 +1,6 @@
 package ssh1
 
 import (
-	"fmt"
 	"net"
 )
 
@@ -56,7 +55,7 @@ func clientAuth(t *transport, conn net.Conn, config *Config) error {
 	}
 	pt, p := Marshal(pUser)
 	if pt != cmsgUser {
-		return fmt.Errorf("SSH_CMSG_USER (%d) should be sended, found %d", cmsgUser, pt)
+		return unexpectedMessageError(cmsgUser, pt) /*fmt.Errorf("SSH_CMSG_USER (%d) should be sended, found %d", cmsgUser, pt)*/
 	}
 
 	if err := t.writePacket(pt, p); err != nil {
@@ -71,8 +70,7 @@ func clientAuth(t *transport, conn net.Conn, config *Config) error {
 		return nil
 	}
 	if pt != smsgFailure {
-		fmt.Println("there")
-		return fmt.Errorf("SSH_SMSG_FAILURE (%d) expected, got %d", smsgFailure, pt)
+		return unexpectedMessageError(smsgFailure, pt) /*fmt.Errorf("SSH_SMSG_FAILURE (%d) expected, got %d", smsgFailure, pt)*/
 	}
 
 	var pPassword = authPasswordCmsg{
@@ -80,7 +78,7 @@ func clientAuth(t *transport, conn net.Conn, config *Config) error {
 	}
 	pt, p2 := Marshal(pPassword)
 	if pt != cmsgAuthPassword {
-		return fmt.Errorf("SSH_CMSG_AUTH_PASSWORD (%d) should be sended, found %d", cmsgAuthPassword, pt)
+		return unexpectedMessageError(cmsgAuthPassword, pt) /*fmt.Errorf("SSH_CMSG_AUTH_PASSWORD (%d) should be sended, found %d", cmsgAuthPassword, pt)*/
 	}
 
 	if err := t.writePacket(pt, p2); err != nil {
@@ -92,8 +90,7 @@ func clientAuth(t *transport, conn net.Conn, config *Config) error {
 		return err
 	}
 	if pt != smsgSuccess {
-		fmt.Println("here")
-		return fmt.Errorf("SSH_SMSG_SUCCESS (%d) expected, got %d", smsgSuccess, pt)
+		return unexpectedMessageError(smsgSuccess, pt) /*fmt.Errorf("SSH_SMSG_SUCCESS (%d) expected, got %d", smsgSuccess, pt)*/
 	}
 
 	return nil

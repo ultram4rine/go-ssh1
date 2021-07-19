@@ -18,12 +18,12 @@ var packageVersion = fmt.Sprintf("SSH-%d.%d-Go", protocolMajor, protocolMinor)
 // unexpectedMessageError results when the SSH message that we received didn't
 // match what we wanted.
 func unexpectedMessageError(expected, got uint8) error {
-	return fmt.Errorf("ssh: unexpected message type %d (expected %d)", got, expected)
+	return fmt.Errorf("ssh1: unexpected message type %d (expected %d)", got, expected)
 }
 
 // parseError results from a malformed SSH message.
 func parseError(tag uint8) error {
-	return fmt.Errorf("ssh: parse error in message type %d", tag)
+	return fmt.Errorf("ssh1: parse error in message type %d", tag)
 }
 
 // Return a 32-bit CRC of the data.

@@ -158,7 +158,8 @@ func keyExchange(conn net.Conn, config *Config) (t *transport, err error) {
 		return
 	}
 	if pt != smsgPublicKey {
-		err = fmt.Errorf("first message should be SSH_SMSG_PUBLIC_KEY (%d), got %d", smsgPublicKey, pt)
+		// err = fmt.Errorf("first message should be SSH_SMSG_PUBLIC_KEY (%d), got %d", smsgPublicKey, pt)
+		err = unexpectedMessageError(smsgPublicKey, pt)
 		return
 	}
 
@@ -216,7 +217,8 @@ func keyExchange(conn net.Conn, config *Config) (t *transport, err error) {
 
 	packetType, packet := Marshal(msg)
 	if packetType != cmsgSessionKey {
-		err = fmt.Errorf("SSH_CMSG_SESSION_KEY (%d) should be sended, found %d", cmsgSessionKey, packetType)
+		// err = fmt.Errorf("SSH_CMSG_SESSION_KEY (%d) should be sended, found %d", cmsgSessionKey, packetType)
+		err = unexpectedMessageError(cmsgSessionKey, packetType)
 		return
 	}
 	err = t.writePacket(packetType, packet)
@@ -227,7 +229,7 @@ func keyExchange(conn net.Conn, config *Config) (t *transport, err error) {
 	// TODO: rc4: different keys for each direction.
 	cm, ok := cipherModes[c]
 	if !ok {
-		err = fmt.Errorf("unsupported cipher (%d)", c)
+		err = fmt.Errorf("ssh1: unsupported cipher (%d)", c)
 		return
 	}
 
@@ -246,7 +248,8 @@ func keyExchange(conn net.Conn, config *Config) (t *transport, err error) {
 		return
 	}
 	if pt != smsgSuccess {
-		err = fmt.Errorf("SSH_SMSG_SUCCESS (%d) expected, got %d", smsgSuccess, pt)
+		// err = fmt.Errorf("SSH_SMSG_SUCCESS (%d) expected, got %d", smsgSuccess, pt)
+		err = unexpectedMessageError(smsgSuccess, pt)
 		return
 	}
 
@@ -264,7 +267,7 @@ func exchangeVersions(rw io.ReadWriter, versionLine []byte) (them []byte, err er
 		// The spec disallows non US-ASCII chars, and
 		// specifically forbids null chars.
 		if c < 32 {
-			return nil, errors.New("ssh: junk character in version line")
+			return nil, errors.New("ssh1: junk character in version line")
 		}
 	}
 	if _, err = rw.Write(append(versionLine, '\r', '\n')); err != nil {
@@ -315,7 +318,7 @@ func readVersion(r io.Reader) ([]byte, error) {
 	}
 
 	if !ok {
-		return nil, errors.New("ssh: overflow reading version string")
+		return nil, errors.New("ssh1: overflow reading version string")
 	}
 
 	// There might be a '\r' on the end which we should remove.
@@ -327,7 +330,7 @@ func readVersion(r io.Reader) ([]byte, error) {
 	// RFC 4253, section 5.1 says that version '1.99' used to
 	// identify compability with older versions of protocol.
 	if !bytes.Equal(versionMajor, []byte("1")) {
-		return nil, fmt.Errorf("ssh: incompatible versions (%s and 1)", versionMajor)
+		return nil, fmt.Errorf("ssh1: incompatible versions (%s and 1)", versionMajor)
 	}
 
 	return versionString, nil
