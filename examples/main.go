@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	_, err := ssh1.Dial("localhost:2222", &ssh1.Config{
+	client, err := ssh1.Dial("localhost:2222", &ssh1.Config{
 		CiphersOrder:    []int{ssh1.SSH_CIPHER_DES},
 		User:            "test",
 		Password:        "test",
@@ -18,4 +18,10 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
+
+	str, err := client.ExecCmd("echo hello ssh1!")
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(str)
 }

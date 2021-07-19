@@ -17,6 +17,27 @@ import (
 // subprocesses, TCP port/streamlocal forwarding and tunneled dialing.
 type Client struct {
 	conn *sshConn
+	t    *transport
+}
+
+func (c *Client) ExecCmd(cmd string) (interface{}, error) {
+	var p = &execCmdCmsg{
+		Command: cmd,
+	}
+	if err := c.t.writePacket(Marshal(p)); err != nil {
+		return "", err
+	}
+
+	pt, pac, err := c.t.readPacket()
+	if err != nil {
+		return "", err
+	}
+	packet, err := decode(pt, pac)
+	if err != nil {
+		return "", err
+	}
+
+	return packet, nil
 }
 
 // NewClient creates a Client on top of the given connection.
@@ -68,25 +89,27 @@ func (c *Client) handleChannelOpens(in <-chan NewChannel) {
 // NewClientConn establishes an authenticated SSH connection using c
 // as the underlying transport.  The Request and NewChannel channels
 // must be serviced or the connection will hang.
-func NewClientConn(c net.Conn, addr string, config *Config) (*sshConn, error) {
+func NewClientConn(c net.Conn, addr string, config *Config) (*transport, *sshConn, error) {
 	conf := *config
 	conf.SetDefaults()
 	if conf.HostKeyCallback == nil {
 		c.Close()
-		return nil, errors.New("ssh1: must specify HostKeyCallback")
+		return nil, nil, errors.New("ssh1: must specify HostKeyCallback")
 	}
 
 	conn := &sshConn{conn: c, user: conf.User}
 
-	if err := conn.handshake(addr, &conf); err != nil {
-		return nil, fmt.Errorf("ssh1: handshake failed: %v", err)
+	t, err := conn.handshake(addr, &conf)
+	if err != nil {
+		c.Close()
+		return nil, nil, fmt.Errorf("ssh1: handshake failed: %v", err)
 	}
-	return conn, nil
+	return t, conn, nil
 }
 
 // clientHandshake performs the client side key exchange. See RFC 4253 Section
 // 7.
-func (c *sshConn) handshake(dialAddress string, config *Config) error {
+func (c *sshConn) handshake(dialAddress string, config *Config) (*transport, error) {
 	if config.Version != "" {
 		c.clientVersion = []byte(config.Version)
 	} else {
@@ -96,20 +119,20 @@ func (c *sshConn) handshake(dialAddress string, config *Config) error {
 	var err error
 	c.serverVersion, err = exchangeVersions(c.conn, c.clientVersion)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	t, err := keyExchange(c.conn, config)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	err = clientAuth(t, config)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return t, nil
 }
 
 // Dial starts a client connection to the given SSH server. It is a
@@ -122,11 +145,11 @@ func Dial(addr string, config *Config) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	c, err := NewClientConn(conn, addr, config)
+	t, c, err := NewClientConn(conn, addr, config)
 	if err != nil {
 		return nil, err
 	}
-	return &Client{conn: c}, err
+	return &Client{conn: c, t: t}, err
 }
 
 // InsecureIgnoreHostKey returns a function that can be used for
