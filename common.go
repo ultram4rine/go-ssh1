@@ -35,7 +35,8 @@ func ssh1CRC32(data []byte, len int) uint32 {
 	return crc32val
 }
 
-// createSessionKey.
+// encryptSessionKey encrypts random session key bytes with session ID, server key and host key.
+// See RFC, section Key Exchange and Server Host Authentication for details.
 func encryptSessionKey(sessionKey [32]byte, sessionID [16]byte, serverKey *rsa.PublicKey, hostKey *rsa.PublicKey) ([]byte, error) {
 	var (
 		smaller *rsa.PublicKey
