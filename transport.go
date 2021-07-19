@@ -34,7 +34,6 @@ type transport struct {
 	bufReader *bufio.Reader
 	bufWriter *bufio.Writer
 	rand      io.Reader
-	isClient  bool
 	io.Closer
 }
 
@@ -63,11 +62,9 @@ func (t *transport) printPacket(pt byte, write bool) {
 		return
 	}
 	who := "server"
-	if t.isClient {
-		who = "client"
-	}
 	what := "read"
 	if write {
+		who = "client"
 		what = "write"
 	}
 	log.Println(what, who, pt)
