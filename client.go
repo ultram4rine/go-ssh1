@@ -107,7 +107,7 @@ func (c *sshConn) handshake(dialAddress string, config *Config) error {
 	}
 	fmt.Println(string(c.serverVersion))
 
-	r, w, err := keyExchange(c.conn)
+	r, w, err := keyExchange(c.conn, config)
 	if err != nil {
 		return err
 	}
@@ -157,7 +157,7 @@ func BannerDisplayStderr() BannerCallback {
 }
 
 // keyExchange.
-func keyExchange(conn net.Conn) (reader, writer connectionState, err error) {
+func keyExchange(conn net.Conn, config *Config) (reader, writer connectionState, err error) {
 	reader = connectionState{
 		packetCipher: &streamPacketCipher{cipher: noneCipher{}},
 	}
@@ -213,11 +213,10 @@ func keyExchange(conn net.Conn) (reader, writer connectionState, err error) {
 		return
 	}
 
-	c, err := chooseCipher(pubKey.CipherMask)
+	c, err := chooseCipher(pubKey.CipherMask, config.CiphersOrder)
 	if err != nil {
 		return
 	}
-	c = SSH_CIPHER_DES
 	var (
 		key = new(big.Int)
 		msg = sessionKeyCmsg{

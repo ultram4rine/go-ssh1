@@ -54,14 +54,13 @@ var cipherModes = map[int]*cipherMode{
 	SSH_CIPHER_BLOWFISH: {16, 8, newBlowfishCBCCipher},
 }
 
-func chooseCipher(ciphersMask Bitmask) (int, error) {
-	if ciphersMask.hasFlag(SSH_CIPHER_3DES) {
-		return SSH_CIPHER_3DES, nil
-	} else if ciphersMask.hasFlag(SSH_CIPHER_DES) {
-		return SSH_CIPHER_DES, nil
-	} else {
-		return 0, errors.New("ssh1: no supported cipher was found")
+func chooseCipher(ciphersMask Bitmask, ciphersOrder []int) (int, error) {
+	for _, c := range ciphersOrder {
+		if ciphersMask.hasFlag(c) {
+			return c, nil
+		}
 	}
+	return -1, errors.New("ssh1: no supported cipher was found")
 }
 
 // CreateCipherMask returns a bitmask of chosen ciphers or panic

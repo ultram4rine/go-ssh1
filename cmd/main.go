@@ -9,6 +9,7 @@ import (
 
 func main() {
 	_, err := ssh1.Dial("localhost:2222", &ssh1.Config{
+		CiphersOrder:    []int{ssh1.SSH_CIPHER_DES},
 		User:            "test",
 		Password:        "test",
 		Timeout:         30 * time.Second,

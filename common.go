@@ -88,20 +88,19 @@ type Config struct {
 	// in package crypto/rand will be used.
 	Rand io.Reader
 
-	// The allowed cipher algorithms. If unspecified then a sensible
+	// The ciphers order to choose cipher. If unspecified then a sensible
 	// default is used.
-	Ciphers Bitmask
+	CiphersOrder []int
 
 	// User contains the username to authenticate as.
 	User string
 
-	// User contains the password to authenticate.
+	// Password contains the password to authenticate.
 	Password string
 
-	// Auth contains possible authentication methods to use with the
-	// server. Only the first instance of a particular RFC 4252 method will
-	// be used during authentication.
-	Auth Bitmask
+	// The auth methods order to choose. If unspecified then a sensible
+	// default is used.
+	AuthOrder []int
 
 	// HostKeyCallback is called during the cryptographic
 	// handshake to validate the server's host key. The client
@@ -133,12 +132,11 @@ func (c *Config) SetDefaults() {
 	if c.Rand == nil {
 		c.Rand = rand.Reader
 	}
-	if c.Ciphers == 0 {
-		c.Ciphers.addFlag(SSH_CIPHER_DES)
-		c.Ciphers.addFlag(SSH_CIPHER_3DES)
+	if len(c.CiphersOrder) == 0 {
+		c.CiphersOrder = append(c.CiphersOrder, SSH_CIPHER_DES, SSH_CIPHER_3DES)
 	}
-	if c.Auth == 0 {
-		c.Auth.addFlag(SSH_AUTH_PASSWORD)
+	if len(c.AuthOrder) == 0 {
+		c.AuthOrder = append(c.AuthOrder, SSH_AUTH_PASSWORD)
 	}
 	if c.Version == "" {
 		c.Version = packageVersion
