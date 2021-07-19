@@ -104,7 +104,7 @@ func (c *sshConn) handshake(dialAddress string, config *Config) error {
 		return err
 	}
 
-	err = clientAuth(t, c.conn, config)
+	err = clientAuth(t, config)
 	if err != nil {
 		return err
 	}

@@ -1,9 +1,5 @@
 package ssh1
 
-import (
-	"net"
-)
-
 const (
 	// SSH_AUTH_RHOSTS is auth using .rhosts file
 	SSH_AUTH_RHOSTS = iota + 1
@@ -49,7 +45,7 @@ func CreateAuthMask(methods ...int) *Bitmask {
 	return mask
 }
 
-func clientAuth(t *transport, conn net.Conn, config *Config) error {
+func clientAuth(t *transport, config *Config) error {
 	var pUser = userCmsg{
 		UserName: config.User,
 	}
