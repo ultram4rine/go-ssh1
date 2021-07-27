@@ -9,6 +9,7 @@ import (
 	"io"
 
 	"github.com/dgryski/go-idea"
+	"github.com/ultram4rine/go-ssh1/ssh13des"
 	blowfish "github.com/ultram4rine/go-ssh1/ssh1blowfish"
 )
 
@@ -19,7 +20,7 @@ const (
 	SSH_CIPHER_IDEA
 	// SSH_CIPHER_DES is DES in CBC mode.
 	SSH_CIPHER_DES
-	// SSH_CIPHER_3DES is 3DES in CBC mode. FIXME: 3DES works incorrect.
+	// SSH_CIPHER_3DES is three independent DES-CBC ciphers used in EDE mode.
 	SSH_CIPHER_3DES
 	// SSH_CIPHER_TSS is not supported TRI's Simple Stream encryption in CBC mode.
 	_
@@ -504,14 +505,27 @@ func newDESCBCCipher(key, iv []byte) (packetCipher, error) {
 	return cbc, nil
 }
 
-// FIXME: 3DES not working.
 func newTripleDESCBCCipher(key, iv []byte) (packetCipher, error) {
-	c, err := des.NewTripleDESCipher(key)
+	c1, err := des.NewCipher(key[:8])
+	if err != nil {
+		return nil, err
+	}
+	c2, err := des.NewCipher(key[8:16])
+	if err != nil {
+		return nil, err
+	}
+	c3, err := des.NewCipher(key[16:])
 	if err != nil {
 		return nil, err
 	}
 
-	cbc := newCBCCipher(c, key, iv)
+	enc := ssh13des.NewEncrypter(c1, c2, c3, iv)
+	dec := ssh13des.NewDecrypter(c1, c2, c3, iv)
+
+	cbc := &cbcCipher{
+		encrypter: enc,
+		decrypter: dec,
+	}
 
 	return cbc, nil
 }
