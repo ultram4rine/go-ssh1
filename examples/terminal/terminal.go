@@ -57,13 +57,13 @@ func run(ctx context.Context) error {
 	}
 
 	hostport := fmt.Sprintf("%s:%d", flag.Arg(0), *port)
-	conn, err := ssh1.Dial("hostport", config)
+	client, err := ssh1.Dial(hostport, config)
 	if err != nil {
 		return fmt.Errorf("cannot connect %v: %v", hostport, err)
 	}
-	defer conn.Close()
+	defer client.Close()
 
-	session, err := conn.NewSession()
+	session, err := client.NewSession()
 	if err != nil {
 		return fmt.Errorf("cannot open new session: %v", err)
 	}
