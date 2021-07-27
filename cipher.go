@@ -6,11 +6,10 @@ import (
 	"crypto/rc4"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 
 	"github.com/dgryski/go-idea"
-	"golang.org/x/crypto/blowfish"
+	blowfish "github.com/ultram4rine/go-ssh1/ssh1blowfish"
 )
 
 const (
@@ -437,37 +436,7 @@ func (c *cbcCipher) readCipherPacket(r io.Reader) (byte, []byte, error) {
 	}
 	rest = append(rest, c.check[:]...)
 
-	fmt.Println(rest)
-	var tmp [4]byte
-
-	/* Process 4 bytes every lap. */
-	for n := 0; n < len(rest); n += 4 {
-		tmp[3] = rest[0+n]
-		tmp[2] = rest[1+n]
-		tmp[1] = rest[2+n]
-		tmp[0] = rest[3+n]
-
-		rest[0+n] = tmp[0]
-		rest[1+n] = tmp[1]
-		rest[2+n] = tmp[2]
-		rest[3+n] = tmp[3]
-	}
-	fmt.Println(rest)
 	c.decrypter.CryptBlocks(rest, rest)
-	fmt.Println(rest)
-	/* Process 4 bytes every lap. */
-	for n := 0; n < len(rest); n += 4 {
-		tmp[3] = rest[0+n]
-		tmp[2] = rest[1+n]
-		tmp[1] = rest[2+n]
-		tmp[0] = rest[3+n]
-
-		rest[0+n] = tmp[0]
-		rest[1+n] = tmp[1]
-		rest[2+n] = tmp[2]
-		rest[3+n] = tmp[3]
-	}
-	fmt.Println(rest)
 
 	c.packetType = rest[paddingLength : paddingLength+1][0]
 	c.data = rest[paddingLength+1 : len(rest)-4]
