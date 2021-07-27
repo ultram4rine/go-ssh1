@@ -19,7 +19,7 @@ const (
 	SSH_CIPHER_IDEA
 	// SSH_CIPHER_DES is DES in CBC mode.
 	SSH_CIPHER_DES
-	// SSH_CIPHER_3DES is 3DES in CBC mode.
+	// SSH_CIPHER_3DES is 3DES in CBC mode. FIXME: 3DES works incorrect.
 	SSH_CIPHER_3DES
 	// SSH_CIPHER_TSS is not supported TRI's Simple Stream encryption in CBC mode.
 	_
