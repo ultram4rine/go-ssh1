@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/ultram4rine/go-ssh1"
@@ -16,12 +17,12 @@ func main() {
 		HostKeyCallback: ssh1.InsecureIgnoreHostKey(),
 	})
 	if err != nil {
-		fmt.Println(err)
+		log.Fatal(err)
 	}
 
 	str, err := client.ExecCmd("echo hello ssh1!")
 	if err != nil {
-		fmt.Println(err)
+		log.Fatal(err)
 	}
 	fmt.Println(str)
 }
