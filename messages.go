@@ -446,8 +446,7 @@ func marshalStruct(out []byte, msg interface{}) (byte, []byte) {
 			out = appendU32(out, uint32(field.Uint()))
 		case reflect.String:
 			s := field.String()
-			out = appendInt(out, len(s))
-			out = append(out, s...)
+			out = appendString(out, s)
 		case reflect.Ptr:
 			if t == bigIntType {
 				var n *big.Int
