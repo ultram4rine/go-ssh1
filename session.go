@@ -37,7 +37,7 @@ var signals = map[Signal]int{
 
 type TerminalModes map[uint8]uint32
 
-// POSIX terminal mode flags as listed in RFC 4254 Section 8.
+// POSIX terminal mode flags as listed in RFC, section Encoding of Terminal Modes.
 const (
 	tty_OP_END    = 0
 	VINTR         = 1
@@ -93,8 +93,8 @@ const (
 	CS8           = 91
 	PARENB        = 92
 	PARODD        = 93
-	TTY_OP_ISPEED = 128
-	TTY_OP_OSPEED = 129
+	TTY_OP_ISPEED = 192
+	TTY_OP_OSPEED = 193
 )
 
 /*
