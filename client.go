@@ -20,6 +20,10 @@ type Client struct {
 	t    *transport
 }
 
+func (c *Client) Close() {
+	c.conn.Close()
+}
+
 func (c *Client) ExecCmd(cmd string) (interface{}, error) {
 	var p = &execCmdCmsg{
 		Command: cmd,
@@ -127,8 +131,7 @@ func (c *sshConn) handshake(dialAddress string, config *Config) (*transport, err
 		return nil, err
 	}
 
-	err = clientAuth(t, config)
-	if err != nil {
+	if err = clientAuthenticate(t, config); err != nil {
 		return nil, err
 	}
 

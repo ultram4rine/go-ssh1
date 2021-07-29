@@ -96,12 +96,8 @@ type Config struct {
 	// User contains the username to authenticate as.
 	User string
 
-	// Password contains the password to authenticate.
-	Password string
-
-	// The auth methods order to choose. If unspecified then a sensible
-	// default is used.
-	AuthOrder []int
+	// The auth methods. Would be tried in specified order.
+	AuthMethods []AuthMethod
 
 	// HostKeyCallback is called during the cryptographic
 	// handshake to validate the server's host key. The client
@@ -135,9 +131,6 @@ func (c *Config) SetDefaults() {
 	}
 	if len(c.CiphersOrder) == 0 {
 		c.CiphersOrder = append(c.CiphersOrder, SSH_CIPHER_DES, SSH_CIPHER_3DES)
-	}
-	if len(c.AuthOrder) == 0 {
-		c.AuthOrder = append(c.AuthOrder, SSH_AUTH_PASSWORD)
 	}
 	if c.Version == "" {
 		c.Version = packageVersion

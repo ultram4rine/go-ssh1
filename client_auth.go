@@ -1,5 +1,10 @@
 package ssh1
 
+import (
+	"crypto/rand"
+	"io"
+)
+
 const (
 	// SSH_AUTH_RHOSTS is auth using .rhosts file
 	SSH_AUTH_RHOSTS = iota + 1
@@ -45,49 +50,107 @@ func CreateAuthMask(methods ...int) *Bitmask {
 	return mask
 }
 
-func clientAuth(t *transport, config *Config) error {
-	var pUser = userCmsg{
-		UserName: config.User,
-	}
-	pt, p := Marshal(pUser)
-	if pt != cmsgUser {
-		return unexpectedMessageError(cmsgUser, pt) /*fmt.Errorf("SSH_CMSG_USER (%d) should be sended, found %d", cmsgUser, pt)*/
-	}
+type authResult int
 
-	if err := t.writePacket(pt, p); err != nil {
+const (
+	authFailure authResult = iota
+	authSuccess
+)
+
+// clientAuthenticate authenticates with the remote server.
+// See RFC, sections Declaring the User Name and Authentication Phase.
+func clientAuthenticate(t *transport, config *Config) error {
+	if err := t.writePacket(Marshal(&userCmsg{UserName: config.User})); err != nil {
 		return err
 	}
-
 	pt, _, err := t.readPacket()
 	if err != nil {
 		return err
 	}
-	if pt == smsgSuccess {
+
+	switch pt {
+	case smsgSuccess:
 		return nil
+	case smsgFailure:
+		{
+			for _, method := range config.AuthMethods {
+				res, err := method.auth(nil, "", t, rand.Reader)
+				if err != nil {
+					return err
+				}
+				if res == authSuccess {
+					break
+				}
+			}
+			return nil
+		}
+	default:
+		return unexpectedMessageError(smsgFailure, pt)
 	}
-	if pt != smsgFailure {
-		return unexpectedMessageError(smsgFailure, pt) /*fmt.Errorf("SSH_SMSG_FAILURE (%d) expected, got %d", smsgFailure, pt)*/
-	}
+}
 
-	var pPassword = authPasswordCmsg{
-		Password: config.Password,
-	}
-	pt, p2 := Marshal(pPassword)
-	if pt != cmsgAuthPassword {
-		return unexpectedMessageError(cmsgAuthPassword, pt) /*fmt.Errorf("SSH_CMSG_AUTH_PASSWORD (%d) should be sended, found %d", cmsgAuthPassword, pt)*/
-	}
+// An AuthMethod represents an instance of an RFC 4252 authentication method.
+type AuthMethod interface {
+	// auth authenticates user over transport t.
+	// Returns true if authentication is successful.
+	// If authentication is not successful, a []string of alternative
+	// method names is returned. If the slice is nil, it will be ignored
+	// and the previous set of possible methods will be reused.
+	auth(session []byte, user string, p packetConn, rand io.Reader) (authResult, error)
 
-	if err := t.writePacket(pt, p2); err != nil {
-		return err
-	}
+	// method returns the RFC 4252 method name.
+	method() string
+}
 
-	pt, _, err = t.readPacket()
+// passwordCallback is an AuthMethod that fetches the password through
+// a function call, e.g. by prompting the user.
+type passwordCallback func() (password string, err error)
+
+func (cb passwordCallback) auth(session []byte, user string, c packetConn, rand io.Reader) (authResult, error) {
+	pw, err := cb()
 	if err != nil {
-		return err
-	}
-	if pt != smsgSuccess {
-		return unexpectedMessageError(smsgSuccess, pt) /*fmt.Errorf("SSH_SMSG_SUCCESS (%d) expected, got %d", smsgSuccess, pt)*/
+		return authFailure, err
 	}
 
-	return nil
+	if err := c.writePacket(Marshal(&authPasswordCmsg{
+		Password: pw,
+	})); err != nil {
+		return authFailure, err
+	}
+
+	return handleAuthResponse(c)
+}
+
+func (cb passwordCallback) method() string {
+	return "password"
+}
+
+// Password returns an AuthMethod using the given password.
+func Password(secret string) AuthMethod {
+	return passwordCallback(func() (string, error) { return secret, nil })
+}
+
+// PasswordCallback returns an AuthMethod that uses a callback for
+// fetching a password.
+func PasswordCallback(prompt func() (secret string, err error)) AuthMethod {
+	return passwordCallback(prompt)
+}
+
+// handleAuthResponse returns whether the preceding authentication request succeeded
+// along with a list of remaining authentication methods to try next and
+// an error if an unexpected response was received.
+func handleAuthResponse(c packetConn) (authResult, error) {
+	for {
+		pt, _, err := c.readPacket()
+		if err != nil {
+			return authFailure, err
+		}
+
+		switch pt {
+		case smsgSuccess:
+			return authSuccess, nil
+		default:
+			return authFailure, unexpectedMessageError(smsgSuccess, pt)
+		}
+	}
 }
