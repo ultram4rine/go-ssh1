@@ -37,3 +37,19 @@ func TestMarshalUnmarshal(t *testing.T) {
 		t.Errorf("got: %#v\nwant:%#v\n%x", iface, val, p)
 	}
 }
+
+func TestMarshalUnmarshalString(t *testing.T) {
+	val := userCmsg{
+		UserName: "test",
+	}
+	var iface userCmsg
+
+	pt, p := Marshal(val)
+	if err := Unmarshal(pt, p, &iface); err != nil {
+		t.Errorf("Unmarshal %#v: %s", iface, err)
+	}
+
+	if !reflect.DeepEqual(iface, val) {
+		t.Errorf("got: %#v\nwant:%#v\n%x", iface, val, p)
+	}
+}
