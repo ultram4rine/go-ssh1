@@ -24,26 +24,6 @@ func (c *Client) Close() {
 	c.conn.Close()
 }
 
-func (c *Client) ExecCmd(cmd string) (interface{}, error) {
-	var p = &execCmdCmsg{
-		Command: cmd,
-	}
-	if err := c.t.writePacket(Marshal(p)); err != nil {
-		return "", err
-	}
-
-	pt, pac, err := c.t.readPacket()
-	if err != nil {
-		return "", err
-	}
-	packet, err := decode(pt, pac)
-	if err != nil {
-		return "", err
-	}
-
-	return packet, nil
-}
-
 // NewClient creates a Client on top of the given connection.
 /*func NewClient(c Conn, chans <-chan NewChannel, reqs <-chan *Request) *Client {
 	conn := &Client{
@@ -360,4 +340,13 @@ func readVersion(r io.Reader) ([]byte, error) {
 	}
 
 	return versionString, nil
+}
+
+// NewSession opens a new Session for this client. (A session is a remote
+// execution of a program.)
+func (c *Client) NewSession() (*Session, error) {
+	s := &Session{
+		t: c.t,
+	}
+	return s, nil
 }

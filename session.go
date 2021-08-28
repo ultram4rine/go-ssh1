@@ -1,6 +1,13 @@
 package ssh1
 
-import "fmt"
+import (
+	"bytes"
+	"errors"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
+)
 
 type Signal string
 
@@ -97,10 +104,11 @@ const (
 	TTY_OP_OSPEED = 193
 )
 
-/*
-
 // A Session represents a connection to a remote command or shell.
 type Session struct {
+	// t is a transport backing this session.
+	t *transport
+
 	// Stdin specifies the remote process's standard input.
 	// If Stdin is nil, the remote process reads from an empty
 	// bytes.Buffer.
@@ -117,8 +125,7 @@ type Session struct {
 	Stdout io.Writer
 	Stderr io.Writer
 
-	ch        Channel // the channel backing this session
-	started   bool    // true once Start, Run or Shell is invoked.
+	started   bool // true once Start, Run or Shell is invoked.
 	copyFuncs []func() error
 	errors    chan error // one send per copyFunc
 
@@ -132,7 +139,234 @@ type Session struct {
 
 	exitStatus chan error
 }
-*/
+
+func (s *Session) Close() error {
+	return s.t.Close()
+}
+
+func (s *Session) start() error {
+	s.started = true
+
+	type F func(*Session)
+	for _, setupFd := range []F{(*Session).stdin, (*Session).stdout, (*Session).stderr} {
+		setupFd(s)
+	}
+
+	s.errors = make(chan error, len(s.copyFuncs))
+	for _, fn := range s.copyFuncs {
+		go func(fn func() error) {
+			s.errors <- fn()
+		}(fn)
+	}
+	return nil
+}
+
+// Shell starts a shell on the remote host.
+// A Session only accepts one call to Run, Start, Shell.
+func (s *Session) Shell() error {
+	if s.started {
+		return errors.New("ssh1: session already started")
+	}
+
+	if err := s.t.writePacket(cmsgExecShell, []byte{}); err != nil {
+		return err
+	}
+
+	return s.start()
+}
+
+// Start runs cmd on the remote host. Typically, the remote
+// server passes cmd to the shell for interpretation.
+// A Session only accepts one call to Run, Start or Shell.
+func (s *Session) Start(cmd string) error {
+	if s.started {
+		return errors.New("ssh1: session already started")
+	}
+	if err := s.t.writePacket(Marshal(&execCmdCmsg{Command: cmd})); err != nil {
+		return err
+	}
+
+	return s.start()
+}
+
+// Run runs cmd on the remote host. Typically, the remote
+// server passes cmd to the shell for interpretation.
+// A Session only accepts one call to Run, Start, Shell, Output,
+// or CombinedOutput.
+//
+// The returned error is nil if the command runs, has no problems
+// copying stdin, stdout, and stderr, and exits with a zero exit
+// status.
+//
+// If the remote server does not send an exit status, an error of type
+// *ExitMissingError is returned. If the command completes
+// unsuccessfully or is interrupted by a signal, the error is of type
+// *ExitError. Other error types may be returned for I/O problems.
+func (s *Session) Run(cmd string) error {
+	err := s.Start(cmd)
+	if err != nil {
+		return err
+	}
+	return s.Wait()
+}
+
+// Wait waits for the remote command to exit.
+//
+// The returned error is nil if the command runs, has no problems
+// copying stdin, stdout, and stderr, and exits with a zero exit
+// status.
+//
+// If the remote server does not send an exit status, an error of type
+// *ExitMissingError is returned. If the command completes
+// unsuccessfully or is interrupted by a signal, the error is of type
+// *ExitError. Other error types may be returned for I/O problems.
+func (s *Session) Wait() error {
+	if !s.started {
+		return errors.New("ssh1: session not started")
+	}
+	waitErr := <-s.exitStatus
+
+	if s.stdinPipeWriter != nil {
+		s.stdinPipeWriter.Close()
+	}
+	var copyError error
+	for range s.copyFuncs {
+		if err := <-s.errors; err != nil && copyError == nil {
+			copyError = err
+		}
+	}
+	if waitErr != nil {
+		return waitErr
+	}
+	return copyError
+}
+
+// RequestPty requests the association of a pty with the session on the remote host.
+func (s *Session) RequestPty(term string, h, w int, termmodes TerminalModes) error {
+	var tm []byte
+	for k, v := range termmodes {
+		kv := struct {
+			Key byte
+			Val uint32
+		}{k, v}
+
+		_, b := Marshal(&kv)
+		tm = append(tm, b...)
+	}
+	tm = append(tm, tty_OP_END)
+	req := requestPTYCmsg{
+		TermEnv:      term,
+		Width:        uint32(w),
+		Height:       uint32(h),
+		WidthPixels:  uint32(w * 8),
+		HeightPixels: uint32(h * 8),
+		TTYModes:     tm,
+	}
+	pt, p := Marshal(&req)
+	log.Println(p)
+	if err := s.t.writePacket(pt, p); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Session) stdin() {
+	if s.stdinpipe {
+		return
+	}
+	var stdin io.Reader
+	if s.Stdin == nil {
+		stdin = new(bytes.Buffer)
+	} else {
+		r, w := io.Pipe()
+		go func() {
+			_, err := io.Copy(w, s.Stdin)
+			w.CloseWithError(err)
+		}()
+		stdin, s.stdinPipeWriter = r, w
+	}
+	s.copyFuncs = append(s.copyFuncs, func() error {
+		log.Println("here")
+		_, err := io.Copy(s.t.bufWriter, stdin)
+		if err1 := s.t.writePacket(cmsgEOF, []byte{}); err == nil && err1 != io.EOF {
+			err = err1
+		}
+		return err
+	})
+}
+
+func (s *Session) stdout() {
+	if s.stdoutpipe {
+		return
+	}
+	if s.Stdout == nil {
+		s.Stdout = ioutil.Discard
+	}
+	s.copyFuncs = append(s.copyFuncs, func() error {
+		_, err := io.Copy(s.Stdout, s.t.bufReader)
+		return err
+	})
+}
+
+func (s *Session) stderr() {
+	if s.stderrpipe {
+		return
+	}
+	if s.Stderr == nil {
+		s.Stderr = ioutil.Discard
+	}
+	s.copyFuncs = append(s.copyFuncs, func() error {
+		_, err := io.Copy(s.Stderr, s.t.bufReader)
+		return err
+	})
+}
+
+// StdinPipe returns a pipe that will be connected to the
+// remote command's standard input when the command starts.
+func (s *Session) StdinPipe() (io.Writer, error) {
+	if s.Stdin != nil {
+		return nil, errors.New("ssh: Stdin already set")
+	}
+	if s.started {
+		return nil, errors.New("ssh: StdinPipe after process started")
+	}
+	s.stdinpipe = true
+	return s.t.bufWriter, nil
+}
+
+// StdoutPipe returns a pipe that will be connected to the
+// remote command's standard output when the command starts.
+// There is a fixed amount of buffering that is shared between
+// stdout and stderr streams. If the StdoutPipe reader is
+// not serviced fast enough it may eventually cause the
+// remote command to block.
+func (s *Session) StdoutPipe() (io.Reader, error) {
+	if s.Stdout != nil {
+		return nil, errors.New("ssh: Stdout already set")
+	}
+	if s.started {
+		return nil, errors.New("ssh: StdoutPipe after process started")
+	}
+	s.stdoutpipe = true
+	return s.t.bufReader, nil
+}
+
+// StderrPipe returns a pipe that will be connected to the
+// remote command's standard error when the command starts.
+// There is a fixed amount of buffering that is shared between
+// stdout and stderr streams. If the StderrPipe reader is
+// not serviced fast enough it may eventually cause the
+// remote command to block.
+func (s *Session) StderrPipe() (io.Reader, error) {
+	if s.Stderr != nil {
+		return nil, errors.New("ssh: Stderr already set")
+	}
+	if s.started {
+		return nil, errors.New("ssh: StderrPipe after process started")
+	}
+	s.stderrpipe = true
+	return s.t.bufReader, nil
+}
 
 // An ExitError reports unsuccessful completion of a remote command.
 type ExitError struct {
