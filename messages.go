@@ -358,16 +358,11 @@ func Unmarshal(packetType byte, data []byte, out interface{}) error {
 			if t.Elem().Kind() != reflect.Uint8 {
 				return fieldError(structType, i, "slice of unsupported type")
 			}
-			if structType.Field(i).Tag.Get("ssh") == "rest" {
-				field.Set(reflect.ValueOf(data))
-				data = nil
-			} else {
-				var s []byte
-				if s, data, ok = parseString(data); !ok {
-					return errShortRead
-				}
-				field.Set(reflect.ValueOf(s))
+			var s []byte
+			if s, data, ok = parseString(data); !ok {
+				return errShortRead
 			}
+			field.Set(reflect.ValueOf(s))
 		default:
 			return fieldError(structType, i, fmt.Sprintf("unsupported type: %v", t))
 		}
@@ -475,9 +470,6 @@ func marshalStruct(out []byte, msg interface{}) (byte, []byte) {
 		case reflect.Slice:
 			if t.Elem().Kind() != reflect.Uint8 {
 				panic(fmt.Sprintf("slice of non-uint8 in field %d: %T", i, field.Interface()))
-			}
-			if v.Type().Field(i).Tag.Get("ssh") != "rest" {
-				out = appendInt(out, field.Len())
 			}
 			out = append(out, field.Bytes()...)
 		}
