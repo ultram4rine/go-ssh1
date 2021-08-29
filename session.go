@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 )
 
 type Signal string
@@ -106,7 +105,7 @@ const (
 
 // A Session represents a connection to a remote command or shell.
 type Session struct {
-	// t is a transport backing this session.
+	// transport backing this session.
 	t *transport
 
 	// Stdin specifies the remote process's standard input.
@@ -118,7 +117,7 @@ type Session struct {
 	// output and error.
 	//
 	// If either is nil, Run connects the corresponding file
-	// descriptor to an instance of ioutil.Discard. There is a
+	// descriptor to an instance of io.Discard. There is a
 	// fixed amount of buffering that is shared for the two streams.
 	// If either blocks it may eventually cause the remote
 	// command to block.
@@ -172,21 +171,30 @@ func (s *Session) Shell() error {
 		return err
 	}
 
-	return s.start()
+	s.started = true
+
+	return nil
 }
 
 // Start runs cmd on the remote host. Typically, the remote
 // server passes cmd to the shell for interpretation.
 // A Session only accepts one call to Run, Start or Shell.
 func (s *Session) Start(cmd string) error {
-	if s.started {
-		return errors.New("ssh1: session already started")
-	}
-	if err := s.t.writePacket(Marshal(&execCmdCmsg{Command: cmd})); err != nil {
-		return err
+	if !s.started {
+		if err := s.t.writePacket(Marshal(&execCmdCmsg{Command: cmd})); err != nil {
+			return err
+		}
+		s.started = true
+	} else {
+		if err := s.t.writePacket(Marshal(&stdinDataCmsg{Data: string(cmd)})); err != nil {
+			return err
+		}
+		if err := s.t.writePacket(cmsgEOF, []byte{}); err != nil {
+			return err
+		}
 	}
 
-	return s.start()
+	return nil
 }
 
 // Run runs cmd on the remote host. Typically, the remote
@@ -202,12 +210,43 @@ func (s *Session) Start(cmd string) error {
 // *ExitMissingError is returned. If the command completes
 // unsuccessfully or is interrupted by a signal, the error is of type
 // *ExitError. Other error types may be returned for I/O problems.
-func (s *Session) Run(cmd string) error {
-	err := s.Start(cmd)
-	if err != nil {
-		return err
+func (s *Session) Run(cmd string) (int, string, error) {
+	if err := s.Start(cmd); err != nil {
+		return -1, "", err
 	}
-	return s.Wait()
+	var (
+		pt     byte
+		p      []byte
+		err    error
+		output string
+	)
+	for pt != 17 && pt != 20 {
+		pt, p, err = s.t.readPacket()
+		if err != nil {
+			return -1, "", err
+		}
+
+		if pt == 17 {
+			var stdout stdoutDataSmsg
+			if err := Unmarshal(pt, p, &stdout); err != nil {
+				return -1, "", err
+			}
+			output = stdout.Data
+		} else if pt == 18 {
+			var stderr stderrDataSmsg
+			if err := Unmarshal(pt, p, &stderr); err != nil {
+				return -1, "", err
+			}
+			output = stderr.Data
+		} else if pt == 20 {
+			var exitstatus exitstatusSmsg
+			if err := Unmarshal(pt, p, &exitstatus); err != nil {
+				return -1, "", err
+			}
+		}
+	}
+
+	return -1, output, nil
 }
 
 // Wait waits for the remote command to exit.
@@ -285,9 +324,15 @@ func (s *Session) stdin() {
 		stdin, s.stdinPipeWriter = r, w
 	}
 	s.copyFuncs = append(s.copyFuncs, func() error {
-		_, err := io.Copy(s.t.bufWriter, stdin)
-		if err1 := s.t.writePacket(cmsgEOF, []byte{}); err == nil && err1 != io.EOF {
+		data := make([]byte, 0, 16384)
+		_, err := stdin.Read(data)
+		if err1 := s.t.writePacket(Marshal(&stdinDataCmsg{Data: string(data)})); err == nil && err1 != nil {
 			err = err1
+		}
+		if err == io.EOF {
+			if err2 := s.t.writePacket(cmsgEOF, []byte{}); err == nil && err2 != nil {
+				err = err2
+			}
 		}
 		return err
 	})
@@ -298,10 +343,14 @@ func (s *Session) stdout() {
 		return
 	}
 	if s.Stdout == nil {
-		s.Stdout = ioutil.Discard
+		s.Stdout = io.Discard
 	}
 	s.copyFuncs = append(s.copyFuncs, func() error {
-		_, err := io.Copy(s.Stdout, s.t.bufReader)
+		_, data, err := s.t.readPacket()
+		if err != nil {
+			return err
+		}
+		_, err = s.Stdout.Write(data)
 		return err
 	})
 }
@@ -311,10 +360,14 @@ func (s *Session) stderr() {
 		return
 	}
 	if s.Stderr == nil {
-		s.Stderr = ioutil.Discard
+		s.Stderr = io.Discard
 	}
 	s.copyFuncs = append(s.copyFuncs, func() error {
-		_, err := io.Copy(s.Stderr, s.t.bufReader)
+		_, data, err := s.t.readPacket()
+		if err != nil {
+			return err
+		}
+		_, err = s.Stderr.Write(data)
 		return err
 	})
 }
@@ -323,13 +376,14 @@ func (s *Session) stderr() {
 // remote command's standard input when the command starts.
 func (s *Session) StdinPipe() (io.Writer, error) {
 	if s.Stdin != nil {
-		return nil, errors.New("ssh: Stdin already set")
+		return nil, errors.New("ssh1: Stdin already set")
 	}
 	if s.started {
-		return nil, errors.New("ssh: StdinPipe after process started")
+		return nil, errors.New("ssh1: StdinPipe after process started")
 	}
 	s.stdinpipe = true
-	return s.t.bufWriter, nil
+	b := new(bytes.Buffer)
+	return io.Writer(b), nil
 }
 
 // StdoutPipe returns a pipe that will be connected to the
@@ -340,13 +394,14 @@ func (s *Session) StdinPipe() (io.Writer, error) {
 // remote command to block.
 func (s *Session) StdoutPipe() (io.Reader, error) {
 	if s.Stdout != nil {
-		return nil, errors.New("ssh: Stdout already set")
+		return nil, errors.New("ssh1: Stdout already set")
 	}
 	if s.started {
-		return nil, errors.New("ssh: StdoutPipe after process started")
+		return nil, errors.New("ssh1: StdoutPipe after process started")
 	}
 	s.stdoutpipe = true
-	return s.t.bufReader, nil
+	b := new(bytes.Buffer)
+	return io.Reader(b), nil
 }
 
 // StderrPipe returns a pipe that will be connected to the
@@ -357,10 +412,10 @@ func (s *Session) StdoutPipe() (io.Reader, error) {
 // remote command to block.
 func (s *Session) StderrPipe() (io.Reader, error) {
 	if s.Stderr != nil {
-		return nil, errors.New("ssh: Stderr already set")
+		return nil, errors.New("ssh1: Stderr already set")
 	}
 	if s.started {
-		return nil, errors.New("ssh: StderrPipe after process started")
+		return nil, errors.New("ssh1: StderrPipe after process started")
 	}
 	s.stderrpipe = true
 	return s.t.bufReader, nil
