@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"time"
 
@@ -20,9 +19,39 @@ func main() {
 		log.Fatal(err)
 	}
 
-	str, err := client.ExecCmd("echo hello ssh1!")
+	session, err := client.NewSession()
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(str)
+	defer session.Close()
+
+	modes := ssh1.TerminalModes{
+		ssh1.ECHO:          1,
+		ssh1.TTY_OP_ISPEED: 14400,
+		ssh1.TTY_OP_OSPEED: 14400,
+	}
+
+	if err := session.RequestPty("xterm-256color", 60, 80, modes); err != nil {
+		log.Fatal(err)
+	}
+
+	session.Shell()
+
+	_, res, err := session.Run("echo '1'")
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println("first", res)
+
+	_, res, err = session.Run("echo '2'")
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println("second", res)
+
+	_, res, err = session.Run("echo '3'")
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println("third", res)
 }

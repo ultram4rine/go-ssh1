@@ -4,7 +4,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -16,19 +15,7 @@ import (
 	terminal "golang.org/x/term"
 )
 
-var (
-	user     = flag.String("l", "", "login_name")
-	password = flag.String("pass", "", "password")
-	port     = flag.Int("p", 22, "port")
-)
-
 func main() {
-	flag.Parse()
-	if flag.NArg() == 0 {
-		flag.Usage()
-		os.Exit(2)
-	}
-
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -56,10 +43,9 @@ func run(ctx context.Context) error {
 		HostKeyCallback: ssh1.InsecureIgnoreHostKey(),
 	}
 
-	hostport := fmt.Sprintf("%s:%d", flag.Arg(0), *port)
-	client, err := ssh1.Dial(hostport, config)
+	client, err := ssh1.Dial("localhost:2222", config)
 	if err != nil {
-		return fmt.Errorf("cannot connect %v: %v", hostport, err)
+		return fmt.Errorf("cannot connect: %v", err)
 	}
 	defer client.Close()
 
