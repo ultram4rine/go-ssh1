@@ -2,6 +2,7 @@ package ssh1
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -244,14 +245,15 @@ func (s *Session) Wait() error {
 // RequestPty requests the association of a pty with the session on the remote host.
 func (s *Session) RequestPty(term string, h, w int, termmodes TerminalModes) error {
 	var tm []byte
-	for k, v := range termmodes {
-		kv := struct {
-			Key byte
-			Val uint32
-		}{k, v}
-
-		_, b := Marshal(&kv)
-		tm = append(tm, b...)
+	for opcode, value := range termmodes {
+		tm = append(tm, opcode)
+		if opcode >= 1 && opcode <= 127 {
+			tm = append(tm, byte(value))
+		} else {
+			vb := make([]byte, 4)
+			binary.BigEndian.PutUint32(vb, value)
+			tm = append(tm, vb...)
+		}
 	}
 	tm = append(tm, tty_OP_END)
 	req := requestPTYCmsg{
@@ -286,7 +288,6 @@ func (s *Session) stdin() {
 		stdin, s.stdinPipeWriter = r, w
 	}
 	s.copyFuncs = append(s.copyFuncs, func() error {
-		log.Println("here")
 		_, err := io.Copy(s.t.bufWriter, stdin)
 		if err1 := s.t.writePacket(cmsgEOF, []byte{}); err == nil && err1 != io.EOF {
 			err = err1
