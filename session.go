@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 )
 
 type Signal string
@@ -264,9 +263,7 @@ func (s *Session) RequestPty(term string, h, w int, termmodes TerminalModes) err
 		HeightPixels: uint32(h * 8),
 		TTYModes:     tm,
 	}
-	pt, p := Marshal(&req)
-	log.Println(p)
-	if err := s.t.writePacket(pt, p); err != nil {
+	if err := s.t.writePacket(Marshal(&req)); err != nil {
 		return err
 	}
 	return nil
