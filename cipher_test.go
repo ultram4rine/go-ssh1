@@ -17,52 +17,65 @@ func testPacketCipher(t *testing.T, k int, v string) {
 	var (
 		server packetCipher
 		client packetCipher
+		key    = []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+		iv     = []byte{0, 0, 0, 0, 0, 0, 0, 0}
 		err    error
 	)
 
 	switch k {
 	case SSH_CIPHER_IDEA:
 		{
-			server, err = newIDEACFBCipher([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}, []byte{0, 0, 0, 0, 0, 0, 0, 0})
+			server, err = newIDEACFBCipher(key[:16], iv)
 			if err != nil {
-				t.Fatalf("newTripleDESCBCCipher(%q, %q): %v", []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}, []byte{0, 0, 0, 0, 0, 0, 0, 0}, err)
+				t.Fatalf("newTripleDESCBCCipher(%q, %q): %v", key[:16], iv, err)
 			}
-			client, err = newIDEACFBCipher([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}, []byte{0, 0, 0, 0, 0, 0, 0, 0})
+			client, err = newIDEACFBCipher(key[:16], iv)
 			if err != nil {
-				t.Fatalf("newTripleDESCBCCipher(%q, %q): %v", []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}, []byte{0, 0, 0, 0, 0, 0, 0, 0}, err)
+				t.Fatalf("newTripleDESCBCCipher(%q, %q): %v", key[:16], iv, err)
 			}
 		}
 	case SSH_CIPHER_DES:
 		{
-			server, err = newDESCBCCipher([]byte{1, 2, 3, 4, 5, 6, 7, 8}, []byte{0, 0, 0, 0, 0, 0, 0, 0})
+			server, err = newDESCBCCipher(key[:8], iv)
 			if err != nil {
-				t.Fatalf("newDESCBCCipher(%q, %q): %v", []byte{1, 2, 3, 4, 5, 6, 7, 8}, []byte{0, 0, 0, 0, 0, 0, 0, 0}, err)
+				t.Fatalf("newDESCBCCipher(%q, %q): %v", key[:8], iv, err)
 			}
-			client, err = newDESCBCCipher([]byte{1, 2, 3, 4, 5, 6, 7, 8}, []byte{0, 0, 0, 0, 0, 0, 0, 0})
+			client, err = newDESCBCCipher(key[:8], iv)
 			if err != nil {
-				t.Fatalf("newDESCBCCipher(%q, %q): %v", []byte{1, 2, 3, 4, 5, 6, 7, 8}, []byte{0, 0, 0, 0, 0, 0, 0, 0}, err)
+				t.Fatalf("newDESCBCCipher(%q, %q): %v", key[:8], iv, err)
 			}
 		}
 	case SSH_CIPHER_3DES:
 		{
-			server, err = newTripleDESCBCCipher([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}, []byte{0, 0, 0, 0, 0, 0, 0, 0})
+			server, err = newTripleDESCBCCipher(key[:24], iv)
 			if err != nil {
-				t.Fatalf("newTripleDESCBCCipher(%q, %q): %v", []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}, []byte{0, 0, 0, 0, 0, 0, 0, 0}, err)
+				t.Fatalf("newTripleDESCBCCipher(%q, %q): %v", key[:24], iv, err)
 			}
-			client, err = newTripleDESCBCCipher([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}, []byte{0, 0, 0, 0, 0, 0, 0, 0})
+			client, err = newTripleDESCBCCipher(key[:24], iv)
 			if err != nil {
-				t.Fatalf("newTripleDESCBCCipher(%q, %q): %v", []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}, []byte{0, 0, 0, 0, 0, 0, 0, 0}, err)
+				t.Fatalf("newTripleDESCBCCipher(%q, %q): %v", key[:24], iv, err)
 			}
 		}
 	case SSH_CIPHER_RC4:
 		{
-			server, err = newRC4([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}, []byte{0, 0, 0, 0, 0, 0, 0, 0})
+			server, err = newRC4(key[:24], iv)
 			if err != nil {
-				t.Fatalf("newRC4(%q, %q): %v", []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}, []byte{0, 0, 0, 0, 0, 0, 0, 0}, err)
+				t.Fatalf("newRC4(%q, %q): %v", key[:24], iv, err)
 			}
-			client, err = newRC4([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}, []byte{0, 0, 0, 0, 0, 0, 0, 0})
+			client, err = newRC4(key[:24], iv)
 			if err != nil {
-				t.Fatalf("newRC4(%q, %q): %v", []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}, []byte{0, 0, 0, 0, 0, 0, 0, 0}, err)
+				t.Fatalf("newRC4(%q, %q): %v", key[:24], iv, err)
+			}
+		}
+	case SSH_CIPHER_BLOWFISH:
+		{
+			server, err = newBlowfishCBCCipher(key[:], iv)
+			if err != nil {
+				t.Fatalf("newBlowfishCBCCipher(%q, %q): %v", key[:], iv, err)
+			}
+			client, err = newBlowfishCBCCipher(key[:], iv)
+			if err != nil {
+				t.Fatalf("newBlowfishCBCCipher(%q, %q): %v", key[:], iv, err)
 			}
 		}
 	default:
