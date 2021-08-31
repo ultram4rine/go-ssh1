@@ -170,8 +170,7 @@ func keyExchange(conn net.Conn, config *Config) (t *transport, err error) {
 	}
 
 	var pubKey pubKeySmsg
-	err = Unmarshal(pt, p, &pubKey)
-	if err != nil {
+	if err = Unmarshal(pt, p, &pubKey); err != nil {
 		return
 	}
 
@@ -207,43 +206,37 @@ func keyExchange(conn net.Conn, config *Config) (t *transport, err error) {
 		return
 	}
 
-	c, err := chooseCipher(pubKey.CipherMask, config.CiphersOrder)
+	cipherNumber, err := chooseCipher(pubKey.CipherMask, config.CiphersOrder)
 	if err != nil {
 		return
 	}
 	var (
 		key = new(big.Int)
 		msg = sessionKeyCmsg{
-			Cipher:        byte(c),
+			Cipher:        byte(cipherNumber),
 			Cookie:        pubKey.Cookie,
 			SessionKey:    key.SetBytes(encryptedSessionKey),
 			ProtocolFlags: 0,
 		}
 	)
 
-	packetType, packet := Marshal(msg)
-	if packetType != cmsgSessionKey {
-		// err = fmt.Errorf("SSH_CMSG_SESSION_KEY (%d) should be sended, found %d", cmsgSessionKey, packetType)
-		err = unexpectedMessageError(cmsgSessionKey, packetType)
-		return
-	}
-	err = t.writePacket(packetType, packet)
+	err = t.writePacket(Marshal(msg))
 	if err != nil {
 		return
 	}
 
 	// TODO: rc4: different keys for each direction.
-	cm, ok := cipherModes[c]
+	mode, ok := cipherModes[cipherNumber]
 	if !ok {
-		err = fmt.Errorf("ssh1: unsupported cipher (%d)", c)
+		err = fmt.Errorf("ssh1: unsupported cipher (%d)", cipherNumber)
 		return
 	}
 
-	t.reader.packetCipher, err = cm.create(sessionKey[:cm.keySize], make([]byte, cm.ivSize))
+	t.reader.packetCipher, err = mode.create(sessionKey[:mode.keySize], make([]byte, mode.ivSize))
 	if err != nil {
 		return
 	}
-	t.writer.packetCipher, err = cm.create(sessionKey[:cm.keySize], make([]byte, cm.ivSize))
+	t.writer.packetCipher, err = mode.create(sessionKey[:mode.keySize], make([]byte, mode.ivSize))
 	if err != nil {
 		return
 	}

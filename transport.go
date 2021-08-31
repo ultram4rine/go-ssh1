@@ -25,8 +25,7 @@ type packetConn interface {
 	Close() error
 }
 
-// transport is the keyingTransport that implements the SSH packet
-// protocol.
+// transport implements the SSH packet protocol.
 type transport struct {
 	reader connectionState
 	writer connectionState
@@ -37,8 +36,8 @@ type transport struct {
 	io.Closer
 }
 
-// packetCipher represents a combination of SSH encryption/MAC
-// protocol.  A single instance should be used for one direction only.
+// packetCipher represents a combination of SSH encryption protocol.
+// A single instance should be used for one direction only.
 type packetCipher interface {
 	// writeCipherPacket encrypts the packet and writes it to w. The
 	// contents of the packet are generally scrambled.
@@ -51,8 +50,7 @@ type packetCipher interface {
 }
 
 // connectionState represents one side (read or write) of the
-// connection. This is necessary because each direction has its own
-// keys, and can even have its own algorithms
+// connection.
 type connectionState struct {
 	packetCipher
 }
