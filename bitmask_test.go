@@ -3,7 +3,7 @@ package ssh1
 import "testing"
 
 func TestHasFlag(t *testing.T) {
-	var m = CreateCipherMask(SSH_CIPHER_3DES)
+	var m = newBitmask(SSH_CIPHER_3DES)
 	v := m.hasFlag(SSH_CIPHER_3DES)
 	if !v {
 		t.Error("Expected true, got", v)
@@ -11,7 +11,7 @@ func TestHasFlag(t *testing.T) {
 }
 
 func TestAddFlag(t *testing.T) {
-	var m = CreateCipherMask(SSH_CIPHER_3DES)
+	var m = newBitmask(SSH_CIPHER_3DES)
 	m.addFlag(SSH_CIPHER_DES)
 	v := m.hasFlag(SSH_CIPHER_DES)
 	if !v {
@@ -20,7 +20,7 @@ func TestAddFlag(t *testing.T) {
 }
 
 func TestRemoveFlag(t *testing.T) {
-	var m = CreateCipherMask(SSH_CIPHER_3DES)
+	var m = newBitmask(SSH_CIPHER_3DES)
 	m.removeFlag(SSH_CIPHER_3DES)
 	v := m.hasFlag(SSH_CIPHER_3DES)
 	if !v {
@@ -29,7 +29,7 @@ func TestRemoveFlag(t *testing.T) {
 }
 
 func TestToggleFlag(t *testing.T) {
-	var m = CreateCipherMask(SSH_CIPHER_3DES)
+	var m = newBitmask(SSH_CIPHER_3DES)
 	m.toggleFlag(SSH_CIPHER_3DES)
 	v := m.hasFlag(SSH_CIPHER_3DES)
 	if v {

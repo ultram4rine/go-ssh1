@@ -30,14 +30,6 @@ const (
 	SSH_CIPHER_BLOWFISH
 )
 
-var CipherNames = map[int]string{
-	SSH_CIPHER_IDEA:     "idea",
-	SSH_CIPHER_DES:      "des",
-	SSH_CIPHER_3DES:     "3des",
-	SSH_CIPHER_RC4:      "rc4",
-	SSH_CIPHER_BLOWFISH: "blowfish",
-}
-
 type cipherMode struct {
 	keySize int
 	ivSize  int
@@ -55,36 +47,13 @@ var cipherModes = map[int]*cipherMode{
 	SSH_CIPHER_BLOWFISH: {32, 8, newBlowfishCBCCipher},
 }
 
-func chooseCipher(ciphersMask Bitmask, ciphersOrder []int) (int, error) {
+func chooseCipher(ciphersMask bitmask, ciphersOrder []int) (int, error) {
 	for _, c := range ciphersOrder {
 		if ciphersMask.hasFlag(c) {
 			return c, nil
 		}
 	}
 	return -1, errors.New("ssh1: no supported cipher was found")
-}
-
-// CreateCipherMask returns a bitmask of chosen ciphers or panic
-// if cipher not supported or length of chosen ciphers too small
-// or too big.
-func CreateCipherMask(ciphers ...int) *Bitmask {
-	var mask = new(Bitmask)
-
-	if len(ciphers) <= 0 {
-		panic("ssh1: too few ciphers")
-	}
-	if len(ciphers) > len(CipherNames) {
-		panic("ssh1: too many ciphers")
-	}
-
-	for _, c := range ciphers {
-		if _, ok := CipherNames[c]; !ok {
-			panic("ssh1: chosen cipher doesn't supported")
-		}
-		mask.addFlag(c)
-	}
-
-	return mask
 }
 
 const (
