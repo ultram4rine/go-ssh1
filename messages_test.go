@@ -7,42 +7,36 @@ import (
 	"testing"
 )
 
+type allTypesMsg struct {
+	Byte   byte `ssh1type:"254"`
+	UInt32 uint32
+	Array  [8]byte
+	String string
+	BigInt *big.Int
+	Slice  []byte
+}
+
 func TestMarshalUnmarshal(t *testing.T) {
 	rand := rand.New(rand.NewSource(0))
 
-	cookieBytes := make([]byte, 8)
-	rand.Read(cookieBytes)
-	var cookie [8]byte
-	copy(cookie[:], cookieBytes)
+	randomBytes := make([]byte, 50)
+	rand.Read(randomBytes)
 
-	sessionKeyBytes := make([]byte, 32)
-	rand.Read(sessionKeyBytes)
-	sk := new(big.Int)
-	sk = sk.SetBytes(sessionKeyBytes)
+	var aBytes [8]byte
+	copy(aBytes[:], randomBytes)
 
-	val := sessionKeyCmsg{
-		Cipher:        byte(2),
-		Cookie:        cookie,
-		SessionKey:    sk,
-		ProtocolFlags: 0,
+	bigInt := new(big.Int)
+	bigInt = bigInt.SetBytes(randomBytes[8:40])
+
+	val := allTypesMsg{
+		Byte:   1,
+		UInt32: 1024,
+		Array:  aBytes,
+		String: "bla-bla",
+		BigInt: bigInt,
+		Slice:  randomBytes[40:],
 	}
-	var iface sessionKeyCmsg
-
-	pt, p := Marshal(val)
-	if err := Unmarshal(pt, p, &iface); err != nil {
-		t.Errorf("Unmarshal %#v: %s", iface, err)
-	}
-
-	if !reflect.DeepEqual(iface, val) {
-		t.Errorf("got: %#v\nwant:%#v\n%x", iface, val, p)
-	}
-}
-
-func TestMarshalUnmarshalString(t *testing.T) {
-	val := userCmsg{
-		UserName: "test",
-	}
-	var iface userCmsg
+	var iface allTypesMsg
 
 	pt, p := Marshal(val)
 	if err := Unmarshal(pt, p, &iface); err != nil {
