@@ -6,8 +6,16 @@ import (
 	"testing"
 )
 
+var cipherNames = map[int]string{
+	SSH_CIPHER_IDEA:     "idea",
+	SSH_CIPHER_DES:      "des",
+	SSH_CIPHER_3DES:     "3des",
+	SSH_CIPHER_RC4:      "rc4",
+	SSH_CIPHER_BLOWFISH: "blowfish",
+}
+
 func TestPacketCiphers(t *testing.T) {
-	for k, v := range CipherNames {
+	for k, v := range cipherNames {
 		t.Run("cipher="+v,
 			func(t *testing.T) { testPacketCipher(t, k, v) })
 	}
