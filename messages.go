@@ -306,7 +306,7 @@ func Unmarshal(packetType byte, data []byte, out interface{}) error {
 			}
 		}
 		if !goodType {
-			return fmt.Errorf("ssh1: unexpected message type %d (expected one of %v)", data[0], expectedTypes)
+			return fmt.Errorf("ssh1: unexpected message type %d (expected one of %v)", packetType, expectedTypes)
 		}
 	}
 
@@ -358,11 +358,9 @@ func Unmarshal(packetType byte, data []byte, out interface{}) error {
 			if t.Elem().Kind() != reflect.Uint8 {
 				return fieldError(structType, i, "slice of unsupported type")
 			}
-			var s []byte
-			if s, data, ok = parseString(data); !ok {
-				return errShortRead
-			}
-			field.Set(reflect.ValueOf(s))
+			// slice is latest in message.
+			field.SetBytes(data)
+			data = nil
 		default:
 			return fieldError(structType, i, fmt.Sprintf("unsupported type: %v", t))
 		}
