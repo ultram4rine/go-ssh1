@@ -339,7 +339,7 @@ func readVersion(r io.Reader) ([]byte, error) {
 // execution of a program.)
 func (c *Client) NewSession() (*Session, error) {
 	s := &Session{
-		t: c.t,
+		conn: c.t,
 	}
 	return s, nil
 }
