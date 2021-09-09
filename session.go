@@ -208,43 +208,12 @@ func (s *Session) Start(cmd string) error {
 // *ExitMissingError is returned. If the command completes
 // unsuccessfully or is interrupted by a signal, the error is of type
 // *ExitError. Other error types may be returned for I/O problems.
-func (s *Session) Run(cmd string) (int, string, error) {
-	if err := s.Start(cmd); err != nil {
-		return -1, "", err
+func (s *Session) Run(cmd string) error {
+	err := s.Start(cmd)
+	if err != nil {
+		return err
 	}
-	var (
-		pt     byte
-		p      []byte
-		err    error
-		output string
-	)
-	for pt != 17 && pt != 20 {
-		pt, p, err = s.conn.readPacket()
-		if err != nil {
-			return -1, "", err
-		}
-
-		if pt == 17 {
-			var stdout stdoutDataSmsg
-			if err := Unmarshal(pt, p, &stdout); err != nil {
-				return -1, "", err
-			}
-			output = stdout.Data
-		} else if pt == 18 {
-			var stderr stderrDataSmsg
-			if err := Unmarshal(pt, p, &stderr); err != nil {
-				return -1, "", err
-			}
-			output = stderr.Data
-		} else if pt == 20 {
-			var exitstatus exitstatusSmsg
-			if err := Unmarshal(pt, p, &exitstatus); err != nil {
-				return -1, "", err
-			}
-		}
-	}
-
-	return -1, output, nil
+	return s.Wait()
 }
 
 // Wait waits for the remote command to exit.
