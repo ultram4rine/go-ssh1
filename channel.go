@@ -152,50 +152,6 @@ func (ch *channel) sendMessage(msg interface{}) error {
 	return ch.writePacket(pt, p)
 }
 
-// WriteExtended writes data to a specific extended stream. These streams are
-// used, for example, for stderr.
-func (ch *channel) WriteExtended(data []byte, extendedCode uint32) (n int, err error) {
-	if ch.sentEOF {
-		return 0, io.EOF
-	}
-	// 1 byte message type, 4 bytes remoteId, 4 bytes data length
-	opCode := byte(msgChannelData)
-	headerLength := uint32(9)
-
-	ch.writeMu.Lock()
-	packet := ch.packetPool[extendedCode]
-	// We don't remove the buffer from packetPool, so
-	// WriteExtended calls from different goroutines will be
-	// flagged as errors by the race detector.
-	ch.writeMu.Unlock()
-
-	for len(data) > 0 {
-		space := min(ch.maxRemotePayload, len(data))
-
-		todo := data[:space]
-
-		packetType := opCode
-		binary.BigEndian.PutUint32(packet[1:], ch.remoteId)
-		if extendedCode > 0 {
-			binary.BigEndian.PutUint32(packet[5:], uint32(extendedCode))
-		}
-		binary.BigEndian.PutUint32(packet[headerLength-4:], uint32(len(todo)))
-		copy(packet[headerLength:], todo)
-		if err = ch.writePacket(packetType, packet); err != nil {
-			return n, err
-		}
-
-		n += len(todo)
-		data = data[len(todo):]
-	}
-
-	ch.writeMu.Lock()
-	ch.packetPool[extendedCode] = packet
-	ch.writeMu.Unlock()
-
-	return n, err
-}
-
 func (ch *channel) handleData(packetType byte, packet []byte) error {
 	headerLen := 9
 	if len(packet) < headerLen {
@@ -219,10 +175,6 @@ func (ch *channel) handleData(packetType byte, packet []byte) error {
 
 	ch.pending.write(data)
 	return nil
-}
-
-func (c *channel) ReadExtended(data []byte, extended uint32) (n int, err error) {
-	return c.pending.read(data)
 }
 
 func (c *channel) close() {
@@ -298,31 +250,53 @@ func (t *transport) newChannel(chanType string, direction channelDirection, extr
 var errUndecided = errors.New("ssh: must Accept or Reject channel")
 var errDecidedAlready = errors.New("ssh: can call Accept or Reject only once")
 
-type extChannel struct {
-	code uint32
-	ch   *channel
-}
-
-func (e *extChannel) Write(data []byte) (n int, err error) {
-	return e.ch.WriteExtended(data, e.code)
-}
-
-func (e *extChannel) Read(data []byte) (n int, err error) {
-	return e.ch.ReadExtended(data, e.code)
-}
-
 func (ch *channel) Read(data []byte) (int, error) {
 	if !ch.decided {
 		return 0, errUndecided
 	}
-	return ch.ReadExtended(data, 0)
+	return ch.pending.read(data)
 }
 
-func (ch *channel) Write(data []byte) (int, error) {
+func (ch *channel) Write(data []byte) (n int, err error) {
 	if !ch.decided {
 		return 0, errUndecided
 	}
-	return ch.WriteExtended(data, 0)
+	if ch.sentEOF {
+		return 0, io.EOF
+	}
+	// 1 byte message type, 4 bytes remoteId, 4 bytes data length
+	opCode := byte(msgChannelData)
+	headerLength := uint32(9)
+
+	ch.writeMu.Lock()
+	packet := ch.packetPool[0]
+	// We don't remove the buffer from packetPool, so
+	// Write calls from different goroutines will be
+	// flagged as errors by the race detector.
+	ch.writeMu.Unlock()
+
+	for len(data) > 0 {
+		space := min(ch.maxRemotePayload, len(data))
+
+		todo := data[:space]
+
+		packetType := opCode
+		binary.BigEndian.PutUint32(packet[1:], ch.remoteId)
+		binary.BigEndian.PutUint32(packet[headerLength-4:], uint32(len(todo)))
+		copy(packet[headerLength:], todo)
+		if err = ch.writePacket(packetType, packet); err != nil {
+			return n, err
+		}
+
+		n += len(todo)
+		data = data[len(todo):]
+	}
+
+	ch.writeMu.Lock()
+	ch.packetPool[0] = packet
+	ch.writeMu.Unlock()
+
+	return n, err
 }
 
 func (ch *channel) CloseWrite() error {
