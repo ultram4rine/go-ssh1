@@ -187,53 +187,6 @@ func (c *channel) close() {
 	c.writeMu.Unlock()
 }
 
-// responseMessageReceived is called when a success or failure message is
-// received on a channel to check that such a message is reasonable for the
-// given channel.
-func (ch *channel) responseMessageReceived() error {
-	if ch.direction == channelInbound {
-		return errors.New("ssh: channel response message received on inbound channel")
-	}
-	if ch.decided {
-		return errors.New("ssh: duplicate response received for channel")
-	}
-	ch.decided = true
-	return nil
-}
-
-func (ch *channel) handlePacket(packetType byte, packet []byte) error {
-	switch packetType {
-	case msgChannelData, smsgStdoutData, smsgStderrData:
-		return ch.handleData(packetType, packet)
-	case msgChannelClose:
-		ch.sendMessage(channelCloseMsg{Remote: ch.remoteId})
-		ch.close()
-		return nil
-	}
-
-	decoded, err := decode(packetType, packet)
-	if err != nil {
-		return err
-	}
-
-	switch msg := decoded.(type) {
-	case *channelOpenFailureMsg:
-		if err := ch.responseMessageReceived(); err != nil {
-			return err
-		}
-		ch.msg <- msg
-	case *channelOpenConfirmationMsg:
-		if err := ch.responseMessageReceived(); err != nil {
-			return err
-		}
-		ch.remoteId = msg.Local
-		ch.msg <- msg
-	default:
-		ch.msg <- msg
-	}
-	return nil
-}
-
 func (t *transport) newChannel(chanType string, direction channelDirection, extraData []byte) *channel {
 	ch := &channel{
 		conn:       t,
@@ -244,6 +197,20 @@ func (t *transport) newChannel(chanType string, direction channelDirection, extr
 		extraData:  extraData,
 		packetPool: make(map[uint32][]byte),
 	}
+
+	go func(conn packetConn) {
+		for {
+			pt, p, err := conn.readPacket()
+			if err != nil {
+				break
+			}
+
+			if pt == smsgStdoutData || pt == smsgStderrData {
+				ch.pending.write(p)
+			}
+		}
+	}(ch.conn)
+
 	return ch
 }
 
@@ -251,50 +218,17 @@ var errUndecided = errors.New("ssh: must Accept or Reject channel")
 var errDecidedAlready = errors.New("ssh: can call Accept or Reject only once")
 
 func (ch *channel) Read(data []byte) (int, error) {
-	if !ch.decided {
-		return 0, errUndecided
-	}
 	return ch.pending.read(data)
 }
 
 func (ch *channel) Write(data []byte) (n int, err error) {
-	if !ch.decided {
-		return 0, errUndecided
-	}
 	if ch.sentEOF {
 		return 0, io.EOF
 	}
-	// 1 byte message type, 4 bytes remoteId, 4 bytes data length
-	opCode := byte(msgChannelData)
-	headerLength := uint32(9)
 
-	ch.writeMu.Lock()
-	packet := ch.packetPool[0]
-	// We don't remove the buffer from packetPool, so
-	// Write calls from different goroutines will be
-	// flagged as errors by the race detector.
-	ch.writeMu.Unlock()
-
-	for len(data) > 0 {
-		space := min(ch.maxRemotePayload, len(data))
-
-		todo := data[:space]
-
-		packetType := opCode
-		binary.BigEndian.PutUint32(packet[1:], ch.remoteId)
-		binary.BigEndian.PutUint32(packet[headerLength-4:], uint32(len(todo)))
-		copy(packet[headerLength:], todo)
-		if err = ch.writePacket(packetType, packet); err != nil {
-			return n, err
-		}
-
-		n += len(todo)
-		data = data[len(todo):]
+	if err = ch.writePacket(Marshal(&stdinDataCmsg{Data: string(data)})); err != nil {
+		return n, err
 	}
-
-	ch.writeMu.Lock()
-	ch.packetPool[0] = packet
-	ch.writeMu.Unlock()
 
 	return n, err
 }

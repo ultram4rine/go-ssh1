@@ -340,6 +340,7 @@ func readVersion(r io.Reader) ([]byte, error) {
 func (c *Client) NewSession() (*Session, error) {
 	s := &Session{
 		conn: c.t,
+		ch:   c.t.newChannel("", 0, []byte{}),
 	}
 	return s, nil
 }

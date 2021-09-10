@@ -334,7 +334,7 @@ func (s *Session) stderr() {
 		s.Stderr = io.Discard
 	}
 	s.copyFuncs = append(s.copyFuncs, func() error {
-		_, err := io.Copy(s.Stderr, s.ch.Stderr())
+		_, err := io.Copy(s.Stderr, s.ch)
 		return err
 	})
 }
@@ -393,7 +393,7 @@ func (s *Session) StderrPipe() (io.Reader, error) {
 		return nil, errors.New("ssh: StderrPipe after process started")
 	}
 	s.stderrpipe = true
-	return s.ch.Stderr(), nil
+	return s.ch, nil
 }
 
 // An ExitError reports unsuccessful completion of a remote command.

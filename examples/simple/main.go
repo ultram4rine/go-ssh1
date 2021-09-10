@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/ultram4rine/go-ssh1"
@@ -35,23 +38,40 @@ func main() {
 		log.Fatal(err)
 	}
 
+	stdin, err := session.StdinPipe()
+	if err != nil {
+		log.Fatal("in pipe", err)
+	}
+	stdout, err := session.StdoutPipe()
+	if err != nil {
+		log.Fatal("out pipe", err)
+	}
+
+	go func(out io.Reader) {
+		for {
+			var buf = make([]byte, 500)
+			if _, err := out.Read(buf); err != nil {
+				log.Println(err)
+			}
+			fmt.Print(string(buf))
+			buf = nil
+		}
+	}(stdout)
+
 	session.Shell()
 
-	_, res, err := session.Run("echo '1'")
+	_, err = stdin.Write([]byte("mkdir test\n"))
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("can't write 1", err)
 	}
-	log.Println("first", res)
+	_, err = stdin.Write([]byte("cd test\n"))
+	if err != nil {
+		log.Fatal("can't write 2", err)
+	}
+	_, err = stdin.Write([]byte("touch file.txt\n"))
+	if err != nil {
+		log.Fatal("can't write 3", err)
+	}
 
-	_, res, err = session.Run("echo '2'")
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Println("second", res)
-
-	_, res, err = session.Run("echo '3'")
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Println("third", res)
+	http.ListenAndServe(":8080", nil)
 }
