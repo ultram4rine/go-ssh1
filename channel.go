@@ -100,10 +100,6 @@ type channel struct {
 
 	conn packetConn
 
-	// decided is set to true if an accept or reject message has been sent
-	// (for outbound channels) or received (for inbound channels).
-	decided bool
-
 	// direction contains either channelOutbound, for channels created
 	// locally, or channelInbound, for channels created by the peer.
 	direction channelDirection
@@ -140,7 +136,7 @@ func (ch *channel) writePacket(packetType byte, packet []byte) error {
 		ch.writeMu.Unlock()
 		return io.EOF
 	}
-	ch.sentClose = (packet[0] == msgChannelClose)
+	ch.sentClose = (packetType == msgChannelClose)
 	err := ch.conn.writePacket(packetType, packet)
 	ch.writeMu.Unlock()
 	return err
@@ -227,26 +223,19 @@ func (ch *channel) Write(data []byte) (n int, err error) {
 	}
 
 	if err = ch.writePacket(Marshal(&stdinDataCmsg{Data: string(data)})); err != nil {
-		return n, err
+		return len(data), err
 	}
 
-	return n, err
+	return len(data), err
 }
 
 func (ch *channel) CloseWrite() error {
-	if !ch.decided {
-		return errUndecided
-	}
 	ch.sentEOF = true
 	return ch.sendMessage(channelCloseMsg{
 		Remote: ch.remoteId})
 }
 
 func (ch *channel) Close() error {
-	if !ch.decided {
-		return errUndecided
-	}
-
 	return ch.sendMessage(channelCloseMsg{
 		Remote: ch.remoteId})
 }
