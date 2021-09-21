@@ -172,9 +172,7 @@ func (s *Session) Shell() error {
 		return err
 	}
 
-	s.started = true
-
-	return nil
+	return s.start()
 }
 
 // Start runs cmd on the remote host. Typically, the remote
@@ -334,7 +332,7 @@ func (s *Session) stderr() {
 		s.Stderr = io.Discard
 	}
 	s.copyFuncs = append(s.copyFuncs, func() error {
-		_, err := io.Copy(s.Stderr, s.ch)
+		_, err := io.Copy(s.Stderr, s.ch.Stderr())
 		return err
 	})
 }
