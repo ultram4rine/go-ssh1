@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/ultram4rine/go-ssh1"
-	terminal "golang.org/x/term"
+	"golang.org/x/term"
 )
 
 func main() {
@@ -56,13 +56,13 @@ func run(ctx context.Context) error {
 	defer session.Close()
 
 	fd := int(os.Stdin.Fd())
-	state, err := terminal.MakeRaw(fd)
+	state, err := term.MakeRaw(fd)
 	if err != nil {
 		return fmt.Errorf("terminal make raw: %s", err)
 	}
-	defer terminal.Restore(fd, state)
+	defer term.Restore(fd, state)
 
-	w, h, err := terminal.GetSize(fd)
+	w, h, err := term.GetSize(fd)
 	if err != nil {
 		return fmt.Errorf("terminal get size: %s", err)
 	}
@@ -73,11 +73,11 @@ func run(ctx context.Context) error {
 		ssh1.TTY_OP_OSPEED: 14400,
 	}
 
-	term := os.Getenv("TERM")
-	if term == "" {
-		term = "xterm-256color"
+	terminal := os.Getenv("TERM")
+	if terminal == "" {
+		terminal = "xterm-256color"
 	}
-	if err := session.RequestPty(term, h, w, modes); err != nil {
+	if err := session.RequestPty(terminal, h, w, modes); err != nil {
 		return fmt.Errorf("session xterm: %s", err)
 	}
 
