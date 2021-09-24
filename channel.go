@@ -24,6 +24,9 @@ type Channel interface {
 	// Read reads up to len(data) bytes from the channel.
 	Read(data []byte) (int, error)
 
+	// Read reads up to len(data) bytes from the channel.
+	ReadStatus(data []byte) (int, error)
+
 	// Write writes len(data) bytes to the channel.
 	Write(data []byte) (int, error)
 
@@ -114,7 +117,8 @@ type channel struct {
 
 	sentEOF bool
 
-	pending *buffer
+	pending    *buffer
+	exitStatus *buffer
 
 	// writeMu serializes calls to mux.conn.writePacket() and
 	// protects sentClose and packetPool. This mutex must be
@@ -187,6 +191,7 @@ func (t *transport) newChannel(chanType string, direction channelDirection, extr
 	ch := &channel{
 		conn:       t,
 		pending:    newBuffer(),
+		exitStatus: newBuffer(),
 		direction:  direction,
 		msg:        make(chan interface{}, 16),
 		chanType:   chanType,
@@ -204,6 +209,10 @@ func (t *transport) newChannel(chanType string, direction channelDirection, extr
 			if pt == smsgStdoutData || pt == smsgStderrData {
 				ch.pending.write(p)
 			}
+
+			if pt == smsgExitstatus {
+				ch.exitStatus.write(p)
+			}
 		}
 	}(ch.conn)
 
@@ -215,6 +224,10 @@ var errDecidedAlready = errors.New("ssh: can call Accept or Reject only once")
 
 func (ch *channel) Read(data []byte) (int, error) {
 	return ch.pending.read(data)
+}
+
+func (ch *channel) ReadStatus(data []byte) (int, error) {
+	return ch.exitStatus.read(data)
 }
 
 func (ch *channel) Write(data []byte) (n int, err error) {

@@ -214,6 +214,30 @@ func (s *Session) Run(cmd string) error {
 	return s.Wait()
 }
 
+func (s *Session) wait() error {
+	wm := Waitmsg{status: -1}
+	// Wait for msg channel to be closed before returning.
+	var packet = make([]byte, 64)
+	n, _ := s.ch.ReadStatus(packet)
+	packet = packet[:n]
+	var exitStatus exitstatusSmsg
+	if err := Unmarshal(smsgExitstatus, packet, &exitStatus); err != nil {
+		return err
+	}
+	wm.status = int(exitStatus.Status)
+	if wm.status == 0 {
+		return nil
+	}
+	if wm.status == -1 {
+		wm.status = 128
+		if _, ok := signals[Signal(wm.signal)]; ok {
+			wm.status += signals[Signal(wm.signal)]
+		}
+	}
+
+	return &ExitError{wm}
+}
+
 // Wait waits for the remote command to exit.
 //
 // The returned error is nil if the command runs, has no problems
@@ -234,11 +258,11 @@ func (s *Session) Wait() error {
 		s.stdinPipeWriter.Close()
 	}
 	var copyError error
-	for range s.copyFuncs {
+	/* for range s.copyFuncs {
 		if err := <-s.errors; err != nil && copyError == nil {
 			copyError = err
 		}
-	}
+	} */
 	if waitErr != nil {
 		return waitErr
 	}
@@ -392,6 +416,20 @@ func (s *Session) StderrPipe() (io.Reader, error) {
 	}
 	s.stderrpipe = true
 	return s.ch, nil
+}
+
+// newSession returns a new interactive session on the remote host.
+func newSession(conn *transport) (*Session, error) {
+	s := &Session{
+		conn: conn,
+		ch:   conn.newChannel("", 0, []byte{}),
+	}
+	s.exitStatus = make(chan error, 1)
+	go func() {
+		s.exitStatus <- s.wait()
+	}()
+
+	return s, nil
 }
 
 // An ExitError reports unsuccessful completion of a remote command.

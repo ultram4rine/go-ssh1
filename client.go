@@ -338,9 +338,5 @@ func readVersion(r io.Reader) ([]byte, error) {
 // NewSession opens a new Session for this client. (A session is a remote
 // execution of a program.)
 func (c *Client) NewSession() (*Session, error) {
-	s := &Session{
-		conn: c.t,
-		ch:   c.t.newChannel("", 0, []byte{}),
-	}
-	return s, nil
+	return newSession(c.t)
 }
