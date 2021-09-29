@@ -20,8 +20,8 @@ type Client struct {
 	t    *transport
 }
 
-func (c *Client) Close() {
-	c.conn.Close()
+func (c *Client) Close() error {
+	return c.conn.Close()
 }
 
 // NewClient creates a Client on top of the given connection.
