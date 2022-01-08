@@ -1,5 +1,20 @@
 name: CI
-on: [push, pull_request]
+
+on:
+  push:
+    paths-ignore:
+      - ".github/dependabot.yml"
+      - ".github/workflows/ssh1-image.yml"
+      - "docker/Dockerfile.ssh1"
+      - "LICENSE"
+      - "README.md"
+  pull_request:
+    paths-ignore:
+      - ".github/dependabot.yml"
+      - ".github/workflows/ssh1-image.yml"
+      - "docker/Dockerfile.ssh1"
+      - "LICENSE"
+      - "README.md"
 
 jobs:
   build:
