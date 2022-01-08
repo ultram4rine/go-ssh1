@@ -1,0 +1,29 @@
+FROM alpine:3.15
+
+WORKDIR "/ssh1"
+
+RUN apk update && apk add --no-cache wget perl make build-base linux-headers zlib-dev
+
+RUN wget https://www.openssl.org/source/old/1.1.1/openssl-1.1.1l.tar.gz &&\
+    wget https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-7.5p1.tar.gz
+
+RUN echo "0b7a3e5e59c34827fe0c3a74b7ec8baef302b98fa80088d7f9153aa16fa76bd1  openssl-1.1.1m.tar.gz" | sha256sum -c &&\
+    echo "$(echo "mEbjxfq58FR0ALTSwBeZL5FCIrP9H47ubH3GvF5Z+fA=" | base64 -d | xxd -p -c 256)  openssh-7.5p1.tar.gz" | sha256sum -c
+
+RUN tar -xf openssl-1.1.1m.tar.gz -C . &&\
+    tar -xf openssh-7.5p1.tar.gz -C .
+
+WORKDIR "/ssh1/openssl-1.1.1m"
+RUN ./config --prefix=/opt --openssldir=/opt/openssl
+RUN make &&\
+    make test &&\
+    make install
+
+WORKDIR "/ssh1/openssh-7.5p1"
+RUN ./configure --prefix=/opt --with-ssh1 --with-ssl-dir=/opt --without-openssl-header-check
+RUN make &&\
+    make install
+
+WORKDIR "/ssh1"
+
+RUN rm -rf openssl-1.1.1m.tar.gz openssh-7.5p1.tar.gz openssl-1.1.1m openssh-7.5p1
