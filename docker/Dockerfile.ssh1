@@ -15,14 +15,14 @@ RUN tar -xf openssl-1.0.2u.tar.gz -C . &&\
 
 WORKDIR "/ssh1/openssl-1.0.2u"
 RUN ./config --prefix=/opt --openssldir=/opt/openssl
-RUN make &&\
-    make test &&\
-    make install
+RUN make --silent &&\
+    make --silent test &&\
+    make --silent install
 
 WORKDIR "/ssh1/openssh-7.5p1"
 RUN ./configure --prefix=/opt --with-ssh1 --with-ssl-dir=/opt
-RUN make &&\
-    make install
+RUN make --silent &&\
+    make --silent install
 
 WORKDIR "/ssh1"
 
