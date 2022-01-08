@@ -4,16 +4,16 @@ WORKDIR "/ssh1"
 
 RUN apk update && apk add --no-cache wget perl make build-base linux-headers zlib-dev
 
-RUN wget https://www.openssl.org/source/old/1.1.1/openssl-1.1.1l.tar.gz &&\
+RUN wget https://www.openssl.org/source/old/1.0.2/openssl-1.0.2u.tar.gz &&\
     wget https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-7.5p1.tar.gz
 
-RUN echo "0b7a3e5e59c34827fe0c3a74b7ec8baef302b98fa80088d7f9153aa16fa76bd1  openssl-1.1.1l.tar.gz" | sha256sum -c &&\
+RUN echo "ecd0c6ffb493dd06707d38b14bb4d8c2288bb7033735606569d8f90f89669d16  openssl-1.0.2u.tar.gz" | sha256sum -c &&\
     echo "$(echo "mEbjxfq58FR0ALTSwBeZL5FCIrP9H47ubH3GvF5Z+fA=" | base64 -d | xxd -p -c 256)  openssh-7.5p1.tar.gz" | sha256sum -c
 
-RUN tar -xf openssl-1.1.1l.tar.gz -C . &&\
+RUN tar -xf openssl-1.0.2u.tar.gz -C . &&\
     tar -xf openssh-7.5p1.tar.gz -C .
 
-WORKDIR "/ssh1/openssl-1.1.1l"
+WORKDIR "/ssh1/openssl-1.0.2u"
 RUN ./config --prefix=/opt --openssldir=/opt/openssl
 RUN make &&\
     make test &&\
@@ -26,4 +26,4 @@ RUN make &&\
 
 WORKDIR "/ssh1"
 
-RUN rm -rf openssl-1.1.1l.tar.gz openssh-7.5p1.tar.gz openssl-1.1.1l openssh-7.5p1
+RUN rm -rf openssl-1.0.2u.tar.gz openssh-7.5p1.tar.gz openssl-1.0.2u openssh-7.5p1
