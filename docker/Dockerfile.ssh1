@@ -3,7 +3,7 @@ FROM alpine:3.15
 WORKDIR "/ssh1"
 
 RUN apk update &&\
-    apk add --no-cache deps gcc make musl-dev perl wget zlib-dev &&\
+    apk add --no-cache gcc make musl-dev perl wget zlib-dev &&\
     apk del fortify-headers
 
 RUN wget https://www.openssl.org/source/old/1.0.2/openssl-1.0.2u.tar.gz &&\
