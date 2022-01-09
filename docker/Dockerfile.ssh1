@@ -7,13 +7,13 @@ RUN apk update &&\
     apk del fortify-headers
 
 RUN wget https://www.openssl.org/source/old/1.0.2/openssl-1.0.2u.tar.gz &&\
-    wget https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-7.5p1.tar.gz
+    wget https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-7.3p1.tar.gz
 
 RUN echo "ecd0c6ffb493dd06707d38b14bb4d8c2288bb7033735606569d8f90f89669d16  openssl-1.0.2u.tar.gz" | sha256sum -c &&\
-    echo "$(echo "mEbjxfq58FR0ALTSwBeZL5FCIrP9H47ubH3GvF5Z+fA=" | base64 -d | xxd -p -c 256)  openssh-7.5p1.tar.gz" | sha256sum -c
+    echo "$(echo "P/uYmm3KppWUw7VQ1IVaWi4XGMzd5/XjY4e0JCIPvsw=" | base64 -d | xxd -p -c 256)  openssh-7.3p1.tar.gz" | sha256sum -c
 
 RUN tar -xf openssl-1.0.2u.tar.gz -C . &&\
-    tar -xf openssh-7.5p1.tar.gz -C .
+    tar -xf openssh-7.3p1.tar.gz -C .
 
 WORKDIR "/ssh1/openssl-1.0.2u"
 RUN ./config --prefix=/opt --openssldir=/opt/openssl
@@ -21,11 +21,11 @@ RUN make --silent &&\
     make --silent test &&\
     make --silent install
 
-WORKDIR "/ssh1/openssh-7.5p1"
+WORKDIR "/ssh1/openssh-7.3p1"
 RUN ./configure --prefix=/opt --with-ssh1 --with-ssl-dir=/opt
 RUN make --silent &&\
     make --silent install
 
 WORKDIR "/ssh1"
 
-RUN rm -rf openssl-1.0.2u.tar.gz openssh-7.5p1.tar.gz openssl-1.0.2u openssh-7.5p1
+RUN rm -rf openssl-1.0.2u.tar.gz openssh-7.3p1.tar.gz openssl-1.0.2u openssh-7.3p1
