@@ -29,3 +29,5 @@ RUN make --silent &&\
 WORKDIR "/ssh1"
 
 RUN rm -rf openssl-1.0.2u.tar.gz openssh-7.3p1.tar.gz openssl-1.0.2u openssh-7.3p1
+
+RUN sed -i 's/#Protocol 2/Protocol 1/g' /opt/etc/sshd_config
