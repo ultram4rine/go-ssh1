@@ -42,6 +42,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Start SSH server
+        working-directory: /opt/sbin
+        run: ./sshd -p 2222
       - name: Run example
         working-directory: ./examples/simple
         run: go run main.go
