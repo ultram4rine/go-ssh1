@@ -17,8 +17,8 @@ on:
       - "README.md"
 
 jobs:
-  test:
-    name: Test
+  unit-tests:
+    name: Unit tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -34,9 +34,25 @@ jobs:
         with:
           files: ./coverage.out
 
+  integration-tests:
+    name: Integration test
+    runs-on: ubuntu-latest
+    container:
+      image: ultram4rine/go-ssh1:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Run example
+        working-directory: ./examples/simple
+        run: go run main.go
+      - name: List directory
+        run: ls -l
+
   build:
     name: Build
-    needs: test
+    needs:
+      - unit-tests
+      - integration-tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
