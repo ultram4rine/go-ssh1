@@ -1,4 +1,4 @@
-FROM alpine:3.15
+FROM alpine:3.15 as builder
 
 WORKDIR "/ssh1"
 
@@ -26,10 +26,10 @@ RUN ./configure --prefix=/opt --with-ssh1 --with-ssl-dir=/opt
 RUN make --silent &&\
     make --silent install
 
-WORKDIR "/ssh1"
-
-RUN rm -rf openssl-1.0.2u.tar.gz openssh-7.3p1.tar.gz openssl-1.0.2u openssh-7.3p1
-
 RUN sed -i 's/#Protocol 2/Protocol 1/g' /opt/etc/sshd_config
+
+FROM golang:1.17-alpine3.15
+
+COPY --from=builder /opt /opt
 
 CMD /opt/sbin/sshd -p 2222
