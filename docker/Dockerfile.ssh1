@@ -26,10 +26,13 @@ RUN ./configure --prefix=/opt --with-ssh1 --with-ssl-dir=/opt
 RUN make --silent &&\
     make --silent install
 
-RUN sed -i 's/#Protocol 2/Protocol 1/g' /opt/etc/sshd_config
+RUN sed -i 's/#Protocol 2/Protocol 1/g' /opt/etc/sshd_config &&\
+    sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/g' /opt/etc/sshd_config
 
 FROM golang:1.17-alpine3.15
 
 COPY --from=builder /opt /opt
+
+RUN echo "root:alpine" | chpasswd
 
 CMD /opt/sbin/sshd -p 2222
