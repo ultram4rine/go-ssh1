@@ -38,5 +38,5 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: |
-            ultram4rine/go-ssh1:latest
-            ghcr.io/ultram4rine/go-ssh1:latest
+            ultram4rine/ssh1:latest
+            ghcr.io/ultram4rine/ssh1:latest
