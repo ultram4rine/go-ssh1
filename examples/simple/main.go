@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"time"
 
@@ -40,42 +39,24 @@ func main() {
 	if err != nil {
 		log.Fatal("in pipe", err)
 	}
-	stdout, err := session.StdoutPipe()
-	if err != nil {
-		log.Fatal("out pipe", err)
-	}
 
 	session.Shell()
-
-	var buf = make([]byte, 500)
 
 	_, err = stdin.Write([]byte("mkdir test\n"))
 	if err != nil {
 		log.Fatal("can't write 1", err)
 	}
-	if _, err := stdout.Read(buf); err != nil {
-		log.Println(err)
-	}
-	fmt.Print(string(buf))
-	buf = nil
+	time.Sleep(time.Second / 2)
 
 	_, err = stdin.Write([]byte("cd test\n"))
 	if err != nil {
 		log.Fatal("can't write 2", err)
 	}
-	if _, err := stdout.Read(buf); err != nil {
-		log.Println(err)
-	}
-	fmt.Print(string(buf))
-	buf = nil
+	time.Sleep(time.Second / 2)
 
 	_, err = stdin.Write([]byte("touch file.txt\n"))
 	if err != nil {
 		log.Fatal("can't write 3", err)
 	}
-	if _, err := stdout.Read(buf); err != nil {
-		log.Println(err)
-	}
-	fmt.Print(string(buf))
-	buf = nil
+	time.Sleep(time.Second / 2)
 }

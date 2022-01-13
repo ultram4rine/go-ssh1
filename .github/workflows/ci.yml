@@ -47,9 +47,8 @@ jobs:
       - name: Run example
         working-directory: ./examples/simple
         run: go run main.go
-      - name: List directory
-        working-directory: /root
-        run: ls -l && ls -l test
+      - name: Check file created
+        run: echo "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  /root/test/file.txt" | sha256sum -c
 
   build:
     name: Build
