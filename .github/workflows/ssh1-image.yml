@@ -36,7 +36,7 @@ jobs:
           context: docker
           file: docker/Dockerfile.ssh1
           platforms: linux/amd64,linux/arm64,linux/arm/v7
-          push: github.event_name != 'pull_request'
+          push: ${{ github.event_name != 'pull_request' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: |
