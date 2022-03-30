@@ -5,14 +5,14 @@ on:
     paths-ignore:
       - ".github/dependabot.yml"
       - ".github/workflows/ssh1-image.yml"
-      - "docker/Dockerfile.ssh1"
+      - "docker/ssh1.Dockerfile"
       - "LICENSE"
       - "README.md"
   pull_request:
     paths-ignore:
       - ".github/dependabot.yml"
       - ".github/workflows/ssh1-image.yml"
-      - "docker/Dockerfile.ssh1"
+      - "docker/ssh1.Dockerfile"
       - "LICENSE"
       - "README.md"
 
