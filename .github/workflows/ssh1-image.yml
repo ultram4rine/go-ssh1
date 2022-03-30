@@ -2,6 +2,12 @@ name: SSH1 image
 
 on:
   push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/ssh1-image.yml"
+      - "docker/ssh1.Dockerfile"
+  pull_request:
     paths:
       - ".github/workflows/ssh1-image.yml"
       - "docker/ssh1.Dockerfile"
