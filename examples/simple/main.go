@@ -16,12 +16,12 @@ func main() {
 		HostKeyCallback: ssh1.InsecureIgnoreHostKey(),
 	})
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("error connecting to server: %v", err)
 	}
 
 	session, err := client.NewSession()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("error creating session: %v", err)
 	}
 	defer session.Close()
 
@@ -32,31 +32,30 @@ func main() {
 	}
 
 	if err := session.RequestPty("xterm-256color", 60, 80, modes); err != nil {
-		log.Fatal(err)
+		log.Fatalf("error requesting pty: %v", err)
 	}
 
 	stdin, err := session.StdinPipe()
 	if err != nil {
-		log.Fatal("in pipe", err)
+		log.Fatalf("error creating stdin pipe: %v", err)
 	}
 
-	session.Shell()
-
-	_, err = stdin.Write([]byte("mkdir test\n"))
-	if err != nil {
-		log.Fatal("can't write 1", err)
+	if err := session.Shell(); err != nil {
+		log.Fatalf("error starting shell: %v", err)
 	}
-	time.Sleep(time.Second / 2)
 
-	_, err = stdin.Write([]byte("cd test\n"))
-	if err != nil {
-		log.Fatal("can't write 2", err)
+	if _, err := stdin.Write([]byte("mkdir test\n")); err != nil {
+		log.Fatalf("error creating directory: %v", err)
 	}
 	time.Sleep(time.Second / 2)
 
-	_, err = stdin.Write([]byte("touch file.txt\n"))
-	if err != nil {
-		log.Fatal("can't write 3", err)
+	if _, err := stdin.Write([]byte("cd test\n")); err != nil {
+		log.Fatalf("error cding to directory: %v", err)
+	}
+	time.Sleep(time.Second / 2)
+
+	if _, err := stdin.Write([]byte("touch file.txt\n")); err != nil {
+		log.Fatalf("error creating file: %v", err)
 	}
 	time.Sleep(time.Second / 2)
 }
