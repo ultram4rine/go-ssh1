@@ -35,7 +35,7 @@ const (
 )
 
 // clientAuthenticate authenticates with the remote server.
-// See RFC, sections Declaring the User Name and Authentication Phase.
+// See RFC, sections Declaring the UserName and Authentication Phase.
 func clientAuthenticate(t *transport, config *Config) error {
 	if err := t.writePacket(Marshal(&userCmsg{UserName: config.User})); err != nil {
 		return err

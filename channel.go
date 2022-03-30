@@ -24,7 +24,7 @@ type Channel interface {
 	// Read reads up to len(data) bytes from the channel.
 	Read(data []byte) (int, error)
 
-	// Read reads up to len(data) bytes from the channel.
+	// ReadStatus reads up to len(data) bytes from the channel.
 	ReadStatus(data []byte) (int, error)
 
 	// Write writes len(data) bytes to the channel.
@@ -57,7 +57,7 @@ const (
 	ResourceShortage
 )
 
-// String converts the rejection reason to human readable form.
+// String converts the rejection reason to human-readable form.
 func (r RejectionReason) String() string {
 	switch r {
 	case Prohibited:
@@ -177,14 +177,14 @@ func (ch *channel) handleData(packetType byte, packet []byte) error {
 	return nil
 }
 
-func (c *channel) close() {
-	c.pending.eof()
-	close(c.msg)
-	c.writeMu.Lock()
+func (ch *channel) close() {
+	ch.pending.eof()
+	close(ch.msg)
+	ch.writeMu.Lock()
 	// This is not necessary for a normal channel teardown, but if
 	// there was another error, it is.
-	c.sentClose = true
-	c.writeMu.Unlock()
+	ch.sentClose = true
+	ch.writeMu.Unlock()
 }
 
 func (t *transport) newChannel(chanType string, direction channelDirection, extraData []byte) *channel {

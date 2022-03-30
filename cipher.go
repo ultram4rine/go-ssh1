@@ -83,11 +83,11 @@ func (c noneCipher) XORKeyStream(dst, src []byte) {
 }
 
 func newRC4(key, iv []byte) (packetCipher, error) {
-	cipher, err := rc4.NewCipher(key)
+	c, err := rc4.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
-	return &streamPacketCipher{cipher: cipher}, nil
+	return &streamPacketCipher{cipher: c}, nil
 }
 
 // streamPacketCipher is a packetCipher using a stream cipher.
@@ -104,7 +104,7 @@ type streamPacketCipher struct {
 // packetTypeForError used when readCipherPacket return error.
 // RFC, section Detailed Description of Packet Types and Formats says that
 // SSH_MSG_NONE is never sent, so we can use it.
-var packetTypeForError = byte(msgNone)
+var packetTypeForError = msgNone
 
 // readCipherPacket reads and decrypt a single packet from the reader argument.
 func (c *streamPacketCipher) readCipherPacket(r io.Reader) (byte, []byte, error) {

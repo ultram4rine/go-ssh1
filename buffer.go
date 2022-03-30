@@ -59,7 +59,7 @@ func (b *buffer) eof() {
 	b.Cond.L.Unlock()
 }
 
-// read reads data from the internal buffer in buf.  Reads will block
+// read data from the internal buffer in buf. read will block
 // if no data is available, or until the buffer is closed.
 func (b *buffer) read(buf []byte) (n int, err error) {
 	b.Cond.L.Lock()

@@ -89,7 +89,7 @@ type Config struct {
 	// in package crypto/rand will be used.
 	Rand io.Reader
 
-	// The ciphers order to choose cipher. If unspecified then a sensible
+	// The ciphers order for cipher selection. If unspecified then a sensible
 	// default is used.
 	CiphersOrder []int
 

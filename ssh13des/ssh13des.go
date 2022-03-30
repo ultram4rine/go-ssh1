@@ -17,7 +17,7 @@ func NewEncrypter(c1, c2, c3 cipher.Block, iv []byte) cipher.BlockMode {
 	}
 }
 
-func (c *encrypter) BlockSize() int { return des.BlockSize }
+func (e *encrypter) BlockSize() int { return des.BlockSize }
 
 func (e *encrypter) CryptBlocks(dst, src []byte) {
 	e.enc1.CryptBlocks(dst, src)
@@ -37,10 +37,10 @@ func NewDecrypter(c1, c2, c3 cipher.Block, iv []byte) cipher.BlockMode {
 	}
 }
 
-func (c *decrypter) BlockSize() int { return des.BlockSize }
+func (d *decrypter) BlockSize() int { return des.BlockSize }
 
-func (e *decrypter) CryptBlocks(dst, src []byte) {
-	e.dec3.CryptBlocks(dst, src)
-	e.enc2.CryptBlocks(dst, src)
-	e.dec1.CryptBlocks(dst, src)
+func (d *decrypter) CryptBlocks(dst, src []byte) {
+	d.dec3.CryptBlocks(dst, src)
+	d.enc2.CryptBlocks(dst, src)
+	d.dec1.CryptBlocks(dst, src)
 }

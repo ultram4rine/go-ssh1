@@ -327,7 +327,7 @@ func readVersion(r io.Reader) ([]byte, error) {
 
 	versionMajor := bytes.Split(bytes.Split(versionString, []byte("-"))[1], []byte("."))[0]
 	// RFC 4253, section 5.1 says that version '1.99' used to
-	// identify compability with older versions of protocol.
+	// identify compatibility with older versions of protocol.
 	if !bytes.Equal(versionMajor, []byte("1")) {
 		return nil, fmt.Errorf("ssh1: incompatible versions (%s and 1)", versionMajor)
 	}

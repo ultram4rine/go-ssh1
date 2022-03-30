@@ -25,7 +25,7 @@ func NewCipher(key []byte) (*Cipher, error) {
 func (c *Cipher) BlockSize() int { return blowfish.BlockSize }
 
 // SSH1 uses a variation on Blowfish, all bytes must be swapped before
-// and after encryption/decryption. Thus the swapBytes stuff.
+// and after encryption/decryption. Thus, the swapBytes stuff.
 func swapBytes(dst, src []byte) {
 	var tmp [4]byte
 	// Process 4 bytes every lap.

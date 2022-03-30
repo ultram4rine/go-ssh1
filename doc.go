@@ -1,5 +1,5 @@
 /*
-Package go-ssh1 implements an SSHv1 client.
+Package ssh1 implements an SSHv1 client.
 
 SSH is a transport security protocol, an authentication protocol and a
 family of application protocols. The most typical application level
