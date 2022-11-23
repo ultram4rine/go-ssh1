@@ -1,4 +1,4 @@
-FROM alpine:3.15 as builder
+FROM alpine:3.17.0 as builder
 
 WORKDIR "/ssh1"
 
