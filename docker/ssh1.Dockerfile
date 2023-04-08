@@ -29,7 +29,7 @@ RUN make --silent &&\
 RUN sed -i 's/#Protocol 2/Protocol 1/g' /opt/etc/sshd_config &&\
     sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/g' /opt/etc/sshd_config
 
-FROM golang:1.17-alpine3.15
+FROM golang:1.19-alpine3.15
 
 COPY --from=builder /opt /opt
 
