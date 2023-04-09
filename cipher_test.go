@@ -3,8 +3,49 @@ package ssh1
 import (
 	"bytes"
 	"crypto/rand"
+	"fmt"
 	"testing"
 )
+
+func TestChooseCipher(t *testing.T) {
+	var (
+		cipherMask   = newBitmask(SSH_CIPHER_3DES)
+		ciphersOrder = []int{SSH_CIPHER_3DES}
+	)
+	cipherNumber, err := chooseCipher(*cipherMask, ciphersOrder)
+	if err != nil {
+		t.Fatalf("chooseCipher(%d, %d): %v", *cipherMask, ciphersOrder, err)
+	}
+	if cipherNumber != SSH_CIPHER_3DES {
+		t.Errorf("choose cipher(3DES): got %d, want %d", cipherNumber, SSH_CIPHER_3DES)
+	}
+}
+
+func TestChooseCipherFail(t *testing.T) {
+	var (
+		cipherMask   = newBitmask(7)
+		ciphersOrder = []int{SSH_CIPHER_3DES}
+	)
+	cipherNumber, err := chooseCipher(*cipherMask, ciphersOrder)
+	if err == nil {
+		t.Fatalf("chooseCipher(%d, %q): err is nil", *cipherMask, ciphersOrder)
+	}
+	if cipherNumber != -1 {
+		t.Errorf("choose cipher(unsupported cipher): got %d, want %d", cipherNumber, -1)
+	}
+}
+
+func TestCheckLengthFail(t *testing.T) {
+	var lengths = [2]uint32{4, 262145}
+	for _, l := range lengths {
+		t.Run(fmt.Sprintf("length=%d", l),
+			func(t *testing.T) {
+				if err := checkLength(l); err == nil {
+					t.Fatalf("checkLength(%d): err is nil", l)
+				}
+			})
+	}
+}
 
 var cipherNames = map[int]string{
 	SSH_CIPHER_IDEA:     "idea",
