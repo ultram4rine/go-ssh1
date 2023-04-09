@@ -17,8 +17,8 @@ on:
       - "README.md"
 
 jobs:
-  unit-tests:
-    name: Unit tests
+  test-and-build:
+    name: Test and build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -33,9 +33,13 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           files: ./coverage.out
+      - name: Build
+        run: go build .
 
   integration-tests:
     name: Integration test
+    needs:
+      - test-and-build
     runs-on: ubuntu-latest
     container:
       image: ultram4rine/go-ssh1:latest
@@ -49,19 +53,3 @@ jobs:
         run: go run main.go
       - name: Check file created
         run: echo "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  /root/test/file.txt" | sha256sum -c
-
-  build:
-    name: Build
-    needs:
-      - unit-tests
-      - integration-tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Setup Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: "1.17"
-      - name: Build
-        run: go build .
